@@ -67,8 +67,6 @@ function extractTitle(text: string): string {
   const abstractIndex = text.search(/\babstract\b/i);
   const firstPart = abstractIndex > 0 ? text.substring(0, abstractIndex) : text.substring(0, 1000);
   
-  console.log('Title extraction - first part preview:', firstPart.substring(0, 500));
-  
   // Remove common header artifacts
   const cleanedText = firstPart
     .replace(/^\s*\d+\s*$/gm, '') // Remove page numbers
@@ -82,6 +80,16 @@ function extractTitle(text: string): string {
     .filter(line => line.length > 20 && line.length < 300);
   
   console.log('Title extraction - candidate lines:', lines.slice(0, 10));
+  
+  // NEW STRATEGY: Look for title after "REVIEW ARTICLE" or similar markers
+  const titleAfterMarker = firstPart.match(/(?:REVIEW ARTICLE|RESEARCH ARTICLE|ORIGINAL ARTICLE|Article)\s+(.+?)(?:\n|Received:|$)/i);
+  if (titleAfterMarker && titleAfterMarker[1]) {
+    const title = titleAfterMarker[1].replace(/\s+/g, ' ').trim();
+    if (title.length > 15 && title.length < 300) {
+      console.log('✅ Title found after marker:', title);
+      return title;
+    }
+  }
   
   // Heuristics for title identification:
   // - Longer than 20 chars
