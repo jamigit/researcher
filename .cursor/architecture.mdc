@@ -1,157 +1,640 @@
 ---
-title: Architecture (AI-friendly)
+description: System architecture for ME/CFS Research System
+tags: [architecture, design, data-models, workflows, tools]
+version: 1.0
+author: Jamie Barter
 updated: 2025-10-28
+priority: high
+alwaysApply: true
 ---
 
-# System Overview
-ME/CFS Research System - An AI-powered evidence synthesis and question-answering system that curates research, detects contradictions, and provides conservative evidence-based answers to research questions.
+# ME/CFS Research System - Architecture
 
-## System Components
-- **Frontend**: React 18 (Vite), TypeScript, Tailwind CSS, React Router v6
-- **Database**: IndexedDB via Dexie for offline-first local storage
-- **PWA**: Service Worker with offline support, installable
-- **AI Integration**: Claude API via Netlify Functions for:
-  - Evidence synthesis and question answering
-  - Contradiction detection and analysis
-  - Mechanism explanations (plain language + technical)
-  - Paper summarization and relevance scoring
-- **External APIs**: PubMed E-utils, Crossref (paper metadata)
+## Overview
 
-## Data Flow
+This document describes the complete system architecture, data models, and design decisions for the ME/CFS Research System.
+
+**Source**: [`docs/PRD.md`](../docs/PRD.md) and [`docs/IMPLEMENTATION_PLAN.md`](../docs/IMPLEMENTATION_PLAN.md)
+
+---
+
+## Architecture Layers
+
+The system follows a 5-layer architecture optimized for tool-based AI workflows:
+
 ```
-User → React Component → Dexie Database Layer → IndexedDB
-                ↓
-         useLiveQuery (reactive) or direct db access
+┌─────────────────────────────────────────────────────────┐
+│                    User Interface                        │
+│              (React + TypeScript + Tailwind)            │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────┴────────────────────────────────────┐
+│              Application Layer                           │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │  Workflows (Weeks 1-4)                          │   │
+│  │  • Paper Ingestion Workflow                     │   │
+│  │  • Question Answering Workflow                  │   │
+│  │  • Contradiction Detection Workflow             │   │
+│  └─────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │  Single Agent (Weeks 5-6, if needed)           │   │
+│  │  • ReAct pattern                                │   │
+│  │  • Tool selection                               │   │
+│  │  • Memory integration                           │   │
+│  └─────────────────────────────────────────────────┘   │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────┴────────────────────────────────────┐
+│                  Tool Layer                              │
+│  ┌─────────────┬──────────────┬────────────────┐       │
+│  │PaperFetcher │ Evidence     │ Contradiction  │       │
+│  │             │ Extractor    │ Detector       │       │
+│  └─────────────┴──────────────┴────────────────┘       │
+│  ┌─────────────┬──────────────┬────────────────┐       │
+│  │Mechanism    │ Preference   │ Export         │       │
+│  │Explainer    │ Learner      │ Generator      │       │
+│  └─────────────┴──────────────┴────────────────┘       │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────┴────────────────────────────────────┐
+│               Service Layer                              │
+│  ┌──────────┬─────────────┬──────────────┐             │
+│  │ PubMed   │ Claude API  │ Crossref API │             │
+│  │ E-utils  │             │              │             │
+│  └──────────┴─────────────┴──────────────┘             │
+└────────────────────┬────────────────────────────────────┘
+                     │
+┌────────────────────┴────────────────────────────────────┐
+│                 Data Layer                               │
+│          IndexedDB (via Dexie.js)                       │
+│  • Papers Table                                         │
+│  • Questions Table                                      │
+│  • Findings Table                                       │
+│  • Contradictions Table                                 │
+│  • Notes Table                                          │
+│  • Preferences Table                                    │
+│  • Explainers Table                                     │
+└─────────────────────────────────────────────────────────┘
 ```
 
-## Database Pattern
+---
+
+## Core Principles
+
+### 1. Tool Quality Enables Intelligence
+
+**Philosophy**: Great tools + simple workflow > poor tools + complex agents
+
+**Application**:
+- Design tools FIRST before agent architecture
+- Each tool gets: error handling, fallbacks, testing, documentation
+- Start with workflows (deterministic), add agents only if needed
+
+### 2. Conservative Evidence Presentation
+
+**Philosophy**: Never claim more than evidence supports
+
+**Application**:
+- ✅ "8 papers found mitochondrial dysfunction [citations]"
+- ❌ NOT: "The consensus is clear" or "Research proves"
+- Conservative language validation on all AI outputs
+
+### 3. Contradictions VERY Prominent
+
+**Philosophy**: Every contradiction gets prominent display
+
+**Application**:
+- Large, visible warning badge (yellow background)
+- Side-by-side comparison (majority vs minority view)
+- Methodological differences explained
+- Conservative interpretation provided
+
+---
+
+## Data Models
+
+### Paper Entity
+
 ```typescript
-// Direct database access via Dexie singleton
-import { db } from '@/services/db';
-
-// Using direct access with async/await
-const papers = await db.papers.toArray();
-const paper = await db.papers.get(id);
-await db.papers.add(newPaper);
-
-// Using reactive queries with useLiveQuery
-import { useLiveQuery } from 'dexie-react-hooks';
-const papers = useLiveQuery(() => db.papers.toArray());
+interface Paper {
+  // Identity
+  id: string;                    // UUID
+  doi?: string;                  // Digital Object Identifier
+  pmid?: string;                 // PubMed ID
+  
+  // Metadata
+  title: string;
+  authors: string[];
+  publication_date: Date;
+  journal?: string;
+  abstract: string;
+  url: string;
+  pdf_url?: string;
+  
+  // Classification
+  study_type: 'RCT' | 'observational' | 'review' | 'case' | 'meta-analysis' | 'other';
+  sample_size?: number;
+  is_peer_reviewed: boolean;
+  
+  // Content
+  summary: {
+    quick: string;               // 2-3 sentences
+    standard: string;            // Full summary (5-7 sentences)
+    technical?: string;          // Technical details
+  };
+  
+  // Relationships
+  answers_questions: string[];   // Question IDs
+  supports_findings: string[];   // Finding IDs
+  explains_mechanisms: string[]; // Mechanism IDs
+  
+  // User data
+  date_added: Date;
+  date_updated: Date;
+  is_read: boolean;
+  importance: 'low' | 'medium' | 'high';
+  user_notes: Note[];
+  
+  // Quality
+  quality_score?: number;        // 0-10
+  quality_notes?: string;
+}
 ```
 
-Quick links:
-- **Database**: `src/services/db.ts` (Dexie configuration and schema)
-- **Storage Service**: `src/services/storage.ts` (import/export utilities)
-- **Hooks**: `src/hooks/usePapers.ts`, `src/hooks/useLocalStorage.ts`, `src/hooks/useOfflineStatus.ts`
-- **Types**: `src/types/paper.ts`, `src/types/database.ts`, `src/types/api.ts`
+### ResearchQuestion Entity
 
-## Database Schema (Dexie)
-**Core Tables** (see Implementation Plan for full schema):
-- `papers` – Research papers with metadata, relevance scores, summaries
-- `questions` – User research questions with status tracking
-- `findings` – Evidence-based answers with paper support and quality metrics
-- `contradictions` – Detected conflicts with majority/minority views
-- `notes` – User notes associated with papers/questions
-- `searches` – Saved search queries
-- `explainers` – Mechanism explanations (plain + technical)
-- `preferences` – User learning data, topic relevance, quality thresholds
+```typescript
+interface ResearchQuestion {
+  // Identity
+  id: string;
+  question: string;
+  
+  // Status
+  status: 'unanswered' | 'partial' | 'answered';
+  confidence: number;            // 0-1
+  
+  // Evidence
+  findings: Finding[];
+  contradictions: Contradiction[];
+  gaps: string[];                // What we don't know
+  
+  // Metadata
+  date_created: Date;
+  last_updated: Date;
+  paper_count: number;
+  
+  // User data
+  is_priority: boolean;
+  user_notes: Note[];
+  related_questions: string[];   // Question IDs
+}
+```
 
-## Request Flows
+### Finding Entity
 
-### Adding a Paper
-1) User fills `AddPaperForm` component
-2) Form validates input with Zod schema
-3) Component calls `db.papers.add(paperData)`
-4) Dexie writes to IndexedDB
-5) Components using `useLiveQuery` automatically re-render
+```typescript
+interface Finding {
+  // Identity
+  id: string;
+  question_id: string;
+  description: string;           // What was found
+  
+  // Evidence
+  supporting_papers: string[];   // Paper IDs
+  study_types: string[];
+  sample_sizes: number[];
+  
+  // Quality
+  consistency: 'high' | 'medium' | 'low';
+  peer_reviewed_count: number;
+  preprint_count: number;
+  quality_assessment: string;
+  
+  // Results
+  quantitative_result?: string;  // e.g., "ATP reduced 20-40%"
+  qualitative_result?: string;
+  
+  // Contradictions
+  has_contradiction: boolean;
+  contradicting_papers: string[]; // Paper IDs
+  
+  // Metadata
+  date_created: Date;
+  last_updated: Date;
+  
+  // Mechanism
+  mechanism_id?: string;         // Link to explainer
+}
+```
 
-### Viewing Papers
-1) `PaperList` uses `useLiveQuery(() => db.papers.toArray())`
-2) Dexie observes IndexedDB and provides reactive updates
-3) List renders with current data
-4) Any changes trigger automatic re-render
+### Contradiction Entity
+
+```typescript
+interface Contradiction {
+  // Identity
+  id: string;
+  finding_id: string;
+  topic: string;
+  
+  // The conflict
+  majority_view: {
+    description: string;
+    papers: string[];            // Paper IDs
+    evidence: string;
+    paper_count: number;
+  };
+  
+  minority_view: {
+    description: string;
+    papers: string[];
+    evidence: string;
+    paper_count: number;
+  };
+  
+  // Analysis
+  methodological_differences: string[];
+  possible_explanations: string[];
+  severity: 'minor' | 'major';
+  
+  // Resolution
+  status: 'unresolved' | 'explained' | 'ongoing';
+  conservative_interpretation: string;
+  
+  // Metadata
+  date_detected: Date;
+  last_updated: Date;
+  
+  // User data
+  user_analysis?: string;
+  flagged_for_research: boolean;
+}
+```
+
+### MechanismExplainer Entity
+
+```typescript
+interface MechanismExplainer {
+  // Identity
+  id: string;
+  name: string;                  // e.g., "Mitochondrial Dysfunction"
+  
+  // Plain language
+  what_is_it: string;
+  how_it_works: string;
+  why_it_matters: string;
+  
+  // Technical
+  technical_details?: {
+    biochemistry: string;
+    pathways: string[];
+    evidence: string;
+  };
+  
+  // Connections
+  related_concepts: string[];    // Other explainer IDs
+  supporting_papers: string[];   // Paper IDs
+  
+  // Metadata
+  date_created: Date;
+  last_updated: Date;
+  
+  // User data
+  user_notes: Note[];
+}
+```
+
+### UserPreferences Entity
+
+```typescript
+interface UserPreferences {
+  // Topics
+  relevant_topics: Map<string, number>;    // topic → score (0-1)
+  disinterest_topics: Set<string>;
+  
+  // Style
+  preferred_summary_style: 'brief' | 'standard' | 'detailed' | 'technical';
+  default_view: 'plain' | 'technical';
+  
+  // Research focus
+  current_research_questions: string[];    // Question IDs
+  priority_mechanisms: string[];
+  
+  // Quality
+  min_study_quality: number;               // 0-10
+  include_preprints: boolean;
+  trusted_journals: Set<string>;
+  trusted_authors: Set<string>;
+  
+  // Behavior
+  papers_per_week_target: number;
+  digest_frequency: 'weekly' | 'biweekly';
+  digest_day: number;                      // 0-6 (Sunday-Saturday)
+  
+  // Learning data
+  feedback_history: Feedback[];
+  last_updated: Date;
+}
+```
+
+---
+
+## Key Tools
+
+### 1. PaperFetcher (Week 1)
+
+**Purpose**: Fetch paper metadata from multiple sources with fallbacks
+
+**Priority**: CRITICAL
+
+**Features**:
+- Multi-source support (PubMed → Crossref → DOI resolver)
+- Retry logic with exponential backoff
+- Validation and deduplication
+- 30-day caching
+- 95%+ success rate target
+
+**Error Handling**:
+- 3 retry attempts per source
+- Fallback to next source on failure
+- Manual entry prompt as last resort
+- All errors logged with context
+
+### 2. EvidenceExtractor (Week 2)
+
+**Purpose**: Extract evidence from papers and synthesize conservatively
+
+**Priority**: CRITICAL
+
+**Features**:
+- Conservative language enforcement (100% compliance)
+- Citation for every assertion
+- Study quality assessment
+- Consistency evaluation
+- Gap identification
+
+**Conservative Rules**:
+- Minimum 3 papers for any finding
+- Banned phrases: "proves", "consensus", "definitely"
+- Required patterns: "X papers found", "suggests", "may indicate"
+
+### 3. ContradictionDetector (Week 3)
+
+**Purpose**: Detect and explain contradictions between findings
+
+**Priority**: CRITICAL
+
+**Features**:
+- Semantic similarity checking
+- Result conflict detection
+- Methodological comparison
+- Biological explanation generation
+- Conservative interpretation synthesis
+
+**Detection Algorithm**:
+1. Check topic similarity (>0.8 threshold)
+2. Identify result conflicts
+3. Analyze discrepancies (method, sample size, quality, timing, population)
+4. Generate possible explanations
+5. Create conservative interpretation
+
+### 4. MechanismExplainer (Week 5)
+
+**Purpose**: Generate plain language explanations of biological mechanisms
+
+**Priority**: HIGH
+
+**Features**:
+- Plain language (10th grade reading level)
+- Technical details (progressive disclosure)
+- Analogies and metaphors
+- Evidence citations
+
+### 5. PreferenceLearner (Week 4)
+
+**Purpose**: Learn user preferences from feedback
+
+**Priority**: MEDIUM
+
+**Features**:
+- Topic relevance tracking
+- Style preference learning
+- Quality threshold adaptation
+- Prediction accuracy: 80%+ after 20 papers
+
+---
+
+## Workflows
+
+### Paper Ingestion Workflow
+
+```
+User input (URL/DOI/PMID)
+  ↓
+PaperFetcher.fetch()
+  ↓
+Validate & deduplicate
+  ↓
+Generate summary (Claude API)
+  ↓
+Assess relevance (PreferenceLearner)
+  ↓
+Store in IndexedDB
+  ↓
+Update UI
+```
 
 ### Question Answering Workflow
-1) User submits research question
-2) System searches relevant papers from database
-3) Sends papers + question to Claude via Netlify Function
-4) Claude performs evidence synthesis with conservative language
-5) System detects contradictions in evidence
-6) Finding stored with paper citations, quality metrics
-7) Contradictions flagged prominently if detected
 
-### Contradiction Detection
-1) New finding analyzed against existing findings
-2) Semantic similarity check (same topic?)
-3) Result conflict detection (findings differ significantly?)
-4) Generate methodological difference analysis
-5) Create conservative interpretation synthesizing both views
-6) Display prominently (yellow warning, can't miss)
+```
+User asks question
+  ↓
+Search papers (keyword + semantic)
+  ↓
+For each paper:
+  Extract relevant findings (EvidenceExtractor)
+  ↓
+Group similar findings
+  ↓
+Detect contradictions (ContradictionDetector)
+  ↓
+Synthesize conservative answer
+  ↓
+Display with citations + contradictions (if any)
+```
 
-### Mechanism Explainer Generation
-1) User requests explanation for biological concept
-2) System retrieves supporting papers
-3) Claude generates plain language explanation
-4) Claude generates technical details
-5) Related concepts linked
-6) Explainer stored and displayed with progressive disclosure
+### Contradiction Detection Workflow
 
-### Data Export/Import
-1) User triggers export in Settings
-2) `exportDatabase()` retrieves all data from Dexie
-3) Data serialized to JSON and downloaded
-4) Import reverses process with `importDatabase()`
-
-## Security
-- **Input sanitization**: All user inputs validated before storage
-- **XSS prevention**: No unsafe HTML rendering without sanitization
-- **Local storage**: All data stays in browser IndexedDB (no external servers in Phase 1)
-- **PWA security**: HTTPS-only service worker, CSP headers
-
-## Performance
-- **Offline-first**: Service Worker caches all assets
-- **Indexed queries**: Dexie indexes on common query fields
-- **Reactive updates**: useLiveQuery minimizes unnecessary re-renders
-- **Code splitting**: Route-based lazy loading
-- **Bundle optimization**: Vite build optimizations
-
-## PWA Features
-- **Installable**: Manifest.json for add to home screen
-- **Offline**: Service Worker caches app shell and data
-- **Responsive**: Mobile-first design with Tailwind
-- **Fast**: Optimized bundle size and loading
+```
+New paper added
+  ↓
+Identify which questions it addresses
+  ↓
+For each question:
+  Extract finding from new paper
+  ↓
+  Compare to existing findings
+  ↓
+  If conflict detected:
+    Create contradiction object
+    Analyze discrepancy
+    Generate interpretation
+    ↓
+    Update question
+    Notify user (prominent yellow warning)
+```
 
 ---
 
-# @ai-context
-- **Database**: `src/services/db.ts`, `src/services/storage.ts`
-- **Components**: `src/components/papers/*`, `src/components/layout/*`
-- **Hooks**: `src/hooks/usePapers.ts`, `src/hooks/useOfflineStatus.ts`
-- **Types**: `src/types/paper.ts`, `src/types/database.ts`
+## Technology Stack
 
-# @ai-dependencies
-- Dexie/IndexedDB for offline-first storage
-- React Router v6 for navigation
-- Vite PWA plugin for service worker
-- Claude API (Phase 2) via Netlify Functions
+### Frontend
+- **React 18**: UI components
+- **TypeScript 5**: Type safety
+- **Vite 5**: Build tool (fast dev)
+- **Tailwind CSS 3**: Styling
+- **React Query 5**: Data fetching, caching
+- **React Router 6**: Navigation
 
-# Notes for AI
-- Always access database through `db` from `@/services/db.ts`
-- Use `useLiveQuery` for reactive data that needs to update automatically
-- Use direct `db.*` calls for one-time operations or mutations
-- TypeScript strict mode is enabled - proper typing required
+### State Management
+- **Zustand 4**: Global state (simpler than Redux)
+- **React Query**: Server state
+- **Local state**: Component-specific data
 
-## Core Design Principles (from PRD)
-1. **Conservative Evidence Presentation**: Never claim more than evidence supports
-   - Use "X papers found..." not "The consensus is..."
-   - Always cite sources, show limitations, highlight contradictions
-2. **Contradictions Are VERY Prominent**: Yellow warning boxes, can't miss
-   - Show majority AND minority views with equal respect
-   - Explain methodological differences
-   - Provide conservative interpretation
-3. **Plain Language First**: Progressive disclosure (simple → detailed → technical)
-   - 10th grade reading level for plain language
-   - Technical details collapsed by default
-4. **Weekly Curation**: System targets 5 papers/week (95% rejection rate)
-5. **Evidence-Based Only**: No treatment recommendations, no predictions
+### Data Persistence
+- **IndexedDB** via **Dexie 4**: Client-side database
+- **LocalStorage**: Preferences (small data)
+- **Service Worker**: Caching (PWA)
 
+### AI/LLM
+- **Claude API** (Anthropic)
+- **Model**: claude-sonnet-4-5-20250929
+- **Routing**: Direct API calls → Netlify Functions (proxy)
+
+### External APIs
+- **PubMed E-utilities** (NCBI) - Free, 3 req/sec limit
+- **Crossref API** - Free, DOI resolution
+- **DOI.org resolver** - Backup
+
+### Development Tools
+- **ESLint + Prettier**: Code quality
+- **Vitest**: Unit testing
+- **Playwright**: E2E testing
+- **Git**: Version control
+
+### Deployment
+- **Vercel or Netlify**: Static hosting
+- **GitHub Actions**: CI/CD
+- **PWA manifest**: Installable
+
+---
+
+## Design Patterns
+
+### Progressive Disclosure
+
+**Pattern**: Start simple → expand on demand
+
+**Application**:
+- Paper summaries: Quick (2-3 sentences) → Standard (5-7) → Detailed → Technical
+- Mechanism explainers: Plain language → Technical details (collapsed)
+- Findings: Summary → Evidence → Citations
+
+### Conservative Language
+
+**Pattern**: Never overstate evidence
+
+**Validation**:
+```typescript
+const BANNED_PHRASES = [
+  'proves', 'the consensus', 'definitely', 
+  'always', 'never', 'all patients', 'caused by'
+];
+
+const REQUIRED_PATTERNS = [
+  'X papers found', 'suggests', 'may indicate', 
+  'appears to', 'evidence supports'
+];
+```
+
+### Aggressive Caching
+
+**Pattern**: Cache aggressively to avoid rate limits
+
+**Strategy**:
+- API responses: 30 days
+- Paper metadata: Permanent (until manual update)
+- Summaries: Permanent (until regenerated)
+- User actions: Immediate sync to IndexedDB
+
+---
+
+## Security & Privacy
+
+### Data Privacy
+- **All data stored locally** (IndexedDB)
+- No cloud storage by default
+- Export/backup user-controlled
+- API keys encrypted
+- No tracking or analytics
+
+### Input Validation
+- All user input sanitized
+- No `dangerouslySetInnerHTML` without sanitization
+- Zod schemas for data validation
+
+### API Security
+- API keys in environment variables
+- Rate limiting respected
+- Retry with exponential backoff
+- Graceful degradation on failures
+
+---
+
+## Performance Targets
+
+### Response Times
+- Paper fetch: < 5 seconds (95th percentile)
+- Summary generation: < 10 seconds
+- Search results: < 1 second
+- Page navigation: < 300ms
+
+### Scalability
+- Support 1,000+ papers in collection
+- Handle 50+ research questions
+- Process 20 papers per week without slowdown
+
+### Reliability
+- 99% uptime for local operations
+- Graceful degradation when APIs unavailable
+- No data loss (auto-save, backup)
+
+---
+
+## Quality Metrics
+
+### Tool Quality
+- Paper fetch success rate: > 95%
+- Summary accuracy: > 80% (human eval)
+- Contradiction detection: > 95% on test set
+- Conservative language compliance: 100%
+
+### User Engagement
+- Papers added per week: > 5
+- Questions asked per week: > 2
+- Daily active use: 5+ minutes
+- User satisfaction (thumbs up): > 70%
+
+---
+
+## Related Documentation
+
+- **Product Requirements**: [`../docs/PRD.md`](../docs/PRD.md)
+- **Implementation Plan**: [`../docs/IMPLEMENTATION_PLAN.md`](../docs/IMPLEMENTATION_PLAN.md)
+- **Development Instructions**: [`./instructions.mdc`](./instructions.mdc)
+- **Project Status**: [`../STATUS.md`](../STATUS.md)
+
+---
+
+**Last Updated**: 2025-10-28  
+**Version**: 1.0  
+**Maintainer**: Jamie Barter

@@ -1,9 +1,12 @@
 # ME/CFS Research System
 ## Product Requirements Document (PRD)
 
+**Document Type**: Product Requirements  
 **Version**: 1.0  
 **Date**: October 28, 2025  
-**Status**: Ready for Implementation
+**Last Updated**: October 28, 2025  
+**Status**: Ready for Implementation  
+**Author**: Jamie Barter
 
 ---
 
@@ -1012,6 +1015,21 @@ For summary style:
 - Includes interface mockup feedback
 - Conservative synthesis principle established
 - Contradiction prominence confirmed as critical
+
+---
+
+## Document Information
+
+**Document Type**: Product Requirements Document  
+**Version**: 1.0  
+**Status**: Ready for Implementation  
+**Last Updated**: October 28, 2025  
+**Author**: Jamie Barter
+
+**Related Documentation**:
+- [`IMPLEMENTATION_PLAN.md`](./IMPLEMENTATION_PLAN.md) - Technical implementation guide
+- [`../STATUS.md`](../STATUS.md) - Current implementation progress
+- [`../.cursor/architecture.mdc`](../.cursor/architecture.mdc) - System architecture
 
 ---
 

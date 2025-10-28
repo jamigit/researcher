@@ -1,101 +1,729 @@
 ---
-title: Cursor Instructions
-owner: Jamie Barter
+description: Development workflow and setup instructions for ME/CFS Research System
+tags: [development, setup, workflow, commands, testing]
+version: 1.0
+author: Jamie Barter
 updated: 2025-10-28
+priority: high
+alwaysApply: true
 ---
 
-# Purpose
-Guardrails for AI-assisted work in this repo. Align with Jamie Barter's account rules while fitting this ME/CFS Research Tracker (Vite + React + TypeScript PWA).
+# ME/CFS Research System - Development Instructions
 
-# Persona
-- AI acts as a senior TypeScript + React engineer.
-- Be explicit and concise; ask to clarify when ambiguous.
-- Prefer production-ready code and add tests alongside changes.
+## Quick Start
 
-# Workflow
-## Planner → Executor
-1) Planner
-- Clarify ambiguity, propose phases, identify risks, and list impacted files.
-- Produce a short plan before edits.
-2) Executor
-- Implement iteratively with small, verifiable edits.
-- Run tests where applicable; keep diffs focused.
+```bash
+# Clone and install
+git clone <repository-url>
+cd researcher
+npm install
 
-### Planner checklist
-- Scope clarified (who/what/where)
-- Acceptance criteria defined
-- Impacted files listed
-- Risks and mitigations noted
-- Identify affected user flows; add/update E2E tests first
+# Start development
+npm run dev
+# → http://localhost:5173
 
-### Executor checklist
-- Add/adjust tests for behavior
-- Keep edits small and isolated
-- Update docs when patterns change
-- Run validation gates before finishing
+# Run tests
+npm run test        # Watch mode
+npm run test:run    # Single run
 
-### How to invoke
-- Commands: see `../commands.json` (Run tests, Lint, Build)
-- Agents: see `../agents/*` (refactorer, test-writer, security-auditor, doc-writer)
+# Build for production
+npm run build
+npm run preview     # Test production build
+```
 
-#### Agent index
-- Frontend Refactorer: use for duplication, prop bloat, slow renders
-- Test Writer: use for new features, bug fixes, IO changes
-- Security Auditor: use for user input, HTML/AI output, auth/storage work
-- Doc Writer: use when patterns or data flows change
+---
 
-### Optional pre-commit (documented only)
-Use a git hook or Husky to run lint and tests before commit:
-`eslint . && vitest --run`
+## Prerequisites
 
-## Phases (example)
-- Phase 1: Discovery (read files, confirm architecture/constraints)
-- Phase 2: Tests (add or update failing tests)
-- Phase 3: Implementation (small edits per concern)
-- Phase 4: Validation (lint, tests, review)
+### Required
+- **Node.js**: 18+ (LTS recommended)
+- **npm**: 9+ (comes with Node.js)
+- **Modern browser**: Chrome 90+, Firefox 90+, Safari 14+, Edge 90+
 
-# Project Conventions
-- **Tooling**: Vite, React 18, TypeScript (strict mode), Vitest, ESLint, Prettier, Tailwind.
-- **State**: Local component state + direct Dexie database access; avoid duplicating database data.
-- **Database**: Use `db` from `src/services/db.ts` or `useLiveQuery` hook for reactive queries.
-- **Accessibility**: Semantic HTML, keyboard support, proper labeling, avoid unnecessary ARIA.
-- **Security**: Sanitize user input; avoid unsafe HTML; follow OWASP basics.
+### Recommended
+- **VS Code** with extensions:
+  - ESLint
+  - Prettier
+  - TypeScript + JavaScript
+  - Tailwind CSS IntelliSense
+- **Git**: Latest version
 
-References: `../architecture.mdc`, `../rules/global.mdc`, `../../docs/PRD.md`, `../../docs/IMPLEMENTATION_PLAN.md`
+---
 
-# Testing
-- Framework: Vitest + Testing Library.
-- Co-locate tests next to code: `<file>.test.tsx|ts`.
-- Minimum: cover critical paths and add tests for regressions.
-- Use proper TypeScript typing in tests.
+## Project Setup
 
-# Code Style
-- Prefer descriptive names; avoid single-letter identifiers.
-- Early returns over deep nesting.
-- Comments only for non-obvious intent or constraints.
-- Keep imports ordered: React, external packages, internal aliases, parents, siblings.
+### 1. Initial Setup
 
-# AI Collaboration Rules
-- Maintain project context integrity; do not invent files or APIs.
-- If a file is missing, ask to create it explicitly.
-- Project uses TypeScript strict mode - all code must be properly typed.
-- Database access through Dexie (`db` from `@/services/db.ts`).
-- Avoid `.then` chains; use async/await.
+```bash
+# Install dependencies
+npm install
 
-# Required Artifacts per Feature/Refactor
-- Tests for critical behavior.
-- Minimal documentation updates in `instructions.mdc`, `architecture.mdc`, or `patterns.md` when patterns change.
+# Copy environment template
+cp .env.example .env
 
-# Validation Checklist
-- Lint passes.
-- Tests pass.
-- No new accessibility regressions (labels/semantics/keyboard).
-- Input handling safe; no unsanitized HTML.
+# Edit .env with your API keys
+# VITE_ANTHROPIC_API_KEY=sk-ant-...    # For Claude AI
+# VITE_NCBI_EMAIL=your@email.com       # For PubMed API
+# VITE_NCBI_API_KEY=xxx                # Optional, increases rate limits
+```
 
-# @ai-context
-- Key files: `src/services/db.ts`, `src/services/storage.ts`, `src/components/papers/*`, `src/hooks/*`, `src/types/*`.
-- External: Dexie/IndexedDB for local storage, Claude API (Phase 2) via Netlify Functions.
+### 2. Database Schema
 
-# @ai-technical-debt
-- When taking shortcuts, annotate in PR with `@ai-technical-debt(priority, effort, impact)` and rationale.
+The application uses **IndexedDB** via **Dexie.js** for local storage.
 
+**Schema Location**: `src/services/db.ts`
+
+**Tables**:
+- `papers` - Research papers with metadata and summaries
+- `questions` - Research questions with status and findings
+- `findings` - Evidence extracted from papers
+- `contradictions` - Detected conflicts between findings
+- `notes` - User notes attached to various entities
+- `preferences` - User preferences and learning data
+- `explainers` - Mechanism explanations (plain + technical)
+
+**Schema Version**: 1 (increment when making breaking changes)
+
+### 3. Verify Setup
+
+```bash
+# Check TypeScript compilation
+npm run build
+
+# Run linter
+npm run lint
+
+# Run tests
+npm run test:run
+```
+
+All should pass with no errors.
+
+---
+
+## Development Commands
+
+### Core Commands
+
+```bash
+# Development server (hot reload)
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build locally
+npm run preview
+
+# Type checking (no build)
+npx tsc --noEmit
+```
+
+### Quality Checks
+
+```bash
+# Lint all files
+npm run lint
+
+# Lint with auto-fix
+npm run lint:fix
+
+# Format with Prettier
+npm run format
+
+# Run all tests
+npm run test:run
+
+# Run tests in watch mode
+npm run test
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+### Database Operations
+
+```bash
+# Clear local database (via browser console)
+# Open DevTools → Console:
+await indexedDB.deleteDatabase('ResearchDB')
+location.reload()
+
+# Export all data (via UI)
+# Settings → Export Data → Download JSON
+
+# Import data (via UI)
+# Settings → Import Data → Select JSON file
+```
+
+---
+
+## Project Structure
+
+```
+researcher/
+├── .cursor/                    # AI-optimized documentation
+│   ├── architecture.mdc        # System architecture
+│   ├── instructions.mdc        # This file
+│   ├── agents/                 # Specialized AI agents
+│   └── rules/                  # Code standards and patterns
+│
+├── docs/                       # Project documentation
+│   ├── PRD.md                  # Product requirements
+│   ├── IMPLEMENTATION_PLAN.md  # Implementation guide
+│   └── planned-features/       # Feature proposals
+│
+├── src/
+│   ├── components/             # React components
+│   │   ├── common/             # Reusable UI (Button, Card, etc.)
+│   │   ├── layout/             # Layout (Header, Footer, Nav)
+│   │   └── papers/             # Paper-specific components
+│   │
+│   ├── pages/                  # Route-level components
+│   │   ├── Dashboard.tsx
+│   │   ├── PaperFeed.tsx
+│   │   ├── PaperDetailPage.tsx
+│   │   └── Settings.tsx
+│   │
+│   ├── services/               # Business logic and database
+│   │   ├── db.ts               # Dexie database setup
+│   │   └── storage.ts          # Storage utilities
+│   │
+│   ├── types/                  # TypeScript types
+│   │   ├── paper.ts
+│   │   ├── database.ts
+│   │   └── api.ts
+│   │
+│   ├── utils/                  # Utility functions
+│   │   ├── constants.ts
+│   │   ├── formatting.ts
+│   │   └── validation.ts
+│   │
+│   ├── hooks/                  # Custom React hooks
+│   │   ├── usePapers.ts
+│   │   ├── useLocalStorage.ts
+│   │   └── useOfflineStatus.ts
+│   │
+│   ├── App.tsx                 # Root component
+│   ├── main.tsx                # Entry point
+│   └── index.css               # Global styles
+│
+├── public/                     # Static assets
+│   ├── manifest.json           # PWA manifest
+│   ├── icon-*.png              # App icons
+│   └── robots.txt
+│
+├── package.json                # Dependencies and scripts
+├── tsconfig.json               # TypeScript config
+├── vite.config.ts              # Vite config
+├── tailwind.config.js          # Tailwind config
+├── .eslintrc.cjs               # ESLint config
+└── .prettierrc                 # Prettier config
+```
+
+---
+
+## Development Workflow
+
+### Adding a New Feature
+
+**Step 1: Plan**
+- Read PRD section for the feature
+- Review implementation plan phase
+- Identify affected components/services
+- Write down acceptance criteria
+
+**Step 2: Implement**
+```bash
+# Create feature branch
+git checkout -b feature/your-feature-name
+
+# Implement in small commits
+# - Write types first
+# - Implement service/tool logic
+# - Add tests
+# - Build UI components
+# - Test manually
+
+# Commit frequently
+git add .
+git commit -m "feat: descriptive message"
+```
+
+**Step 3: Test**
+```bash
+# Run type checking
+npx tsc --noEmit
+
+# Run linter
+npm run lint
+
+# Run tests
+npm run test:run
+
+# Manual testing
+npm run dev
+# → Test happy path
+# → Test error cases
+# → Test edge cases
+```
+
+**Step 4: Review**
+- Check against validation checklist (see `.cursorrules`)
+- Ensure conservative language (if AI-generated text)
+- Verify accessibility (keyboard nav, screen reader)
+- Review performance (no unnecessary re-renders)
+
+**Step 5: Merge**
+```bash
+git push origin feature/your-feature-name
+# Open pull request
+# Wait for CI checks
+# Merge to main
+```
+
+---
+
+## Adding New Tools
+
+Tools are the core building blocks of the system. Each tool should be:
+- **Self-contained**: One clear purpose
+- **Well-tested**: Unit tests for all paths
+- **Error-handled**: Graceful degradation
+- **Documented**: Clear interface and examples
+
+### Tool Template
+
+```typescript
+// src/tools/ExampleTool.ts
+
+import { logger } from '@/utils/logger';
+
+export interface ExampleToolInput {
+  param1: string;
+  param2: number;
+}
+
+export interface ExampleToolOutput {
+  result: string;
+  metadata: Record<string, any>;
+}
+
+export class ExampleTool {
+  /**
+   * Main method with clear purpose
+   */
+  async execute(input: ExampleToolInput): Promise<ExampleToolOutput> {
+    logger.info('ExampleTool.execute', { input });
+    
+    try {
+      // Validate input
+      this.validateInput(input);
+      
+      // Execute logic
+      const result = await this.doWork(input);
+      
+      // Validate output
+      this.validateOutput(result);
+      
+      logger.info('ExampleTool.execute.success', { result });
+      return result;
+      
+    } catch (error) {
+      logger.error('ExampleTool.execute.error', { error, input });
+      throw error;
+    }
+  }
+  
+  private validateInput(input: ExampleToolInput): void {
+    if (!input.param1 || input.param1.length === 0) {
+      throw new Error('param1 is required');
+    }
+    if (input.param2 < 0) {
+      throw new Error('param2 must be positive');
+    }
+  }
+  
+  private async doWork(input: ExampleToolInput): Promise<ExampleToolOutput> {
+    // Main logic here
+    return {
+      result: `Processed: ${input.param1}`,
+      metadata: { param2: input.param2 }
+    };
+  }
+  
+  private validateOutput(output: ExampleToolOutput): void {
+    if (!output.result) {
+      throw new Error('Output validation failed');
+    }
+  }
+}
+```
+
+### Tool Tests
+
+```typescript
+// src/tools/ExampleTool.test.ts
+
+import { describe, it, expect } from 'vitest';
+import { ExampleTool } from './ExampleTool';
+
+describe('ExampleTool', () => {
+  it('should process valid input', async () => {
+    const tool = new ExampleTool();
+    const result = await tool.execute({
+      param1: 'test',
+      param2: 42
+    });
+    
+    expect(result.result).toBe('Processed: test');
+    expect(result.metadata.param2).toBe(42);
+  });
+  
+  it('should reject invalid input', async () => {
+    const tool = new ExampleTool();
+    
+    await expect(
+      tool.execute({ param1: '', param2: 42 })
+    ).rejects.toThrow('param1 is required');
+  });
+  
+  it('should handle errors gracefully', async () => {
+    const tool = new ExampleTool();
+    
+    await expect(
+      tool.execute({ param1: 'test', param2: -1 })
+    ).rejects.toThrow('param2 must be positive');
+  });
+});
+```
+
+---
+
+## Testing Strategy
+
+### Unit Tests (Vitest)
+
+**Location**: Co-located with files (`*.test.ts` or `*.test.tsx`)
+
+**What to Test**:
+- All tool functions
+- All utility functions
+- Data validation logic
+- Workflow logic
+
+**Example**:
+```typescript
+import { describe, it, expect } from 'vitest';
+import { formatDate } from './formatting';
+
+describe('formatDate', () => {
+  it('should format date correctly', () => {
+    const date = new Date('2025-10-28');
+    expect(formatDate(date)).toBe('October 28, 2025');
+  });
+});
+```
+
+### Integration Tests (Vitest)
+
+**What to Test**:
+- Workflow end-to-end
+- API integrations (with mocks)
+- Database operations
+- Component integration
+
+**Example**:
+```typescript
+import { describe, it, expect, beforeEach } from 'vitest';
+import { db } from '@/services/db';
+import { ingestPaper } from '@/workflows/paperIngestion';
+
+describe('Paper Ingestion Workflow', () => {
+  beforeEach(async () => {
+    await db.delete(); // Clear database
+    await db.open();   // Reopen clean
+  });
+  
+  it('should ingest paper end-to-end', async () => {
+    const paper = await ingestPaper('10.1001/jama.2024.1234');
+    
+    expect(paper.title).toBeTruthy();
+    expect(paper.summary.quick).toBeTruthy();
+    
+    // Verify stored
+    const stored = await db.papers.get(paper.id);
+    expect(stored).toBeDefined();
+  });
+});
+```
+
+### End-to-End Tests (Playwright)
+
+**Location**: `tests/e2e/`
+
+**What to Test**:
+- Complete user journeys
+- UI interactions
+- Error handling
+- PWA features
+
+**Example**:
+```typescript
+import { test, expect } from '@playwright/test';
+
+test('complete research workflow', async ({ page }) => {
+  await page.goto('http://localhost:5173');
+  
+  // Add a paper
+  await page.click('text=Add Paper');
+  await page.fill('input[name="paperInput"]', '10.1001/jama.2024.1234');
+  await page.click('button:has-text("Fetch Paper")');
+  
+  // Wait for paper to be added
+  await expect(page.locator('.paper-card')).toBeVisible();
+  
+  // Ask a question
+  await page.click('text=Ask New Question');
+  await page.fill('textarea[name="question"]', 'What causes PEM?');
+  await page.click('button:has-text("Ask Question")');
+  
+  // Wait for answer
+  await expect(page.locator('.evidence-summary')).toBeVisible();
+});
+```
+
+---
+
+## Database Schema Updates
+
+When updating the database schema:
+
+**Step 1: Update schema version**
+```typescript
+// src/services/db.ts
+
+export class ResearchDB extends Dexie {
+  constructor() {
+    super('ResearchDB');
+    
+    // Increment version number
+    this.version(2).stores({  // was 1, now 2
+      papers: 'id, doi, pmid, title, date_added, new_field',  // Added new_field
+      // ... other tables
+    });
+  }
+}
+```
+
+**Step 2: Add migration (if needed)**
+```typescript
+this.version(2).stores({
+  // ... stores definition
+}).upgrade(tx => {
+  // Migration logic
+  return tx.table('papers').toCollection().modify(paper => {
+    paper.new_field = 'default_value';
+  });
+});
+```
+
+**Step 3: Test migration**
+```bash
+# Test with existing data
+npm run dev
+# → App should load without errors
+# → Check browser console for migration logs
+# → Verify data integrity
+```
+
+**Step 4: Document change**
+```typescript
+// Add comment in db.ts
+/**
+ * Schema Version 2 (2025-10-29):
+ * - Added 'new_field' to papers table
+ * - Migration: Set default value for existing papers
+ */
+```
+
+---
+
+## Deployment
+
+### Development Deployment (Vercel/Netlify)
+
+```bash
+# Install Vercel CLI
+npm install -g vercel
+
+# Login
+vercel login
+
+# Deploy preview
+vercel
+
+# Deploy production
+vercel --prod
+```
+
+### Environment Variables (Production)
+
+Set in Vercel/Netlify dashboard:
+```
+VITE_ANTHROPIC_API_KEY=sk-ant-...
+VITE_NCBI_EMAIL=your@email.com
+VITE_NCBI_API_KEY=xxx
+```
+
+### PWA Setup
+
+**Manifest**: `public/manifest.json`
+
+**Service Worker**: Auto-generated by Vite PWA plugin
+
+**Icons**: Place in `public/` directory
+- `icon-192.png` (192x192)
+- `icon-512.png` (512x512)
+- `icon.svg` (vector)
+
+**Test PWA**:
+```bash
+npm run build
+npm run preview
+# → Open in Chrome
+# → DevTools → Application → Manifest
+# → Check all fields present
+# → Try installing app
+```
+
+---
+
+## Troubleshooting
+
+### Issue: TypeScript errors after npm install
+
+**Solution**:
+```bash
+rm -rf node_modules package-lock.json
+npm install
+```
+
+### Issue: Database not persisting
+
+**Solution**:
+- Check browser privacy settings (allow IndexedDB)
+- Clear site data: DevTools → Application → Clear storage
+- Try incognito mode (to rule out extensions)
+
+### Issue: API rate limits
+
+**Solution**:
+- Check current rate limit status (see logs)
+- Wait for rate limit to reset
+- Add NCBI API key (increases limit from 3 to 10 req/sec)
+- Implement more aggressive caching
+
+### Issue: Build fails with memory error
+
+**Solution**:
+```bash
+# Increase Node.js memory limit
+NODE_OPTIONS=--max-old-space-size=4096 npm run build
+```
+
+### Issue: Tests failing intermittently
+
+**Solution**:
+- Check for race conditions
+- Add proper async/await
+- Use `waitFor` in component tests
+- Mock slow/flaky external APIs
+
+---
+
+## Code Standards
+
+### TypeScript
+
+- **Strict mode**: Enabled
+- **No `any`**: Use proper types or `unknown`
+- **Explicit return types**: For public functions
+- **Interface over type**: For object shapes
+
+### React
+
+- **Functional components**: Always
+- **Hooks**: Follow rules of hooks
+- **Props**: Destructure in function signature
+- **Early returns**: For conditional rendering
+
+### Imports
+
+**Order**:
+1. React
+2. External packages
+3. Internal aliases (`@/`)
+4. Parent directories (`../`)
+5. Sibling files (`./`)
+
+**Example**:
+```typescript
+import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { db } from '@/services/db';
+import { formatDate } from '@/utils/formatting';
+import { Button } from '../common/Button';
+import { PaperCard } from './PaperCard';
+```
+
+### Naming
+
+- **Components**: PascalCase (`PaperCard.tsx`)
+- **Functions**: camelCase (`formatDate`)
+- **Constants**: SCREAMING_SNAKE_CASE (`API_BASE_URL`)
+- **Types/Interfaces**: PascalCase (`interface Paper`)
+- **Files**: Match export name
+
+---
+
+## Validation Checklist
+
+Before committing:
+
+- [ ] TypeScript compiles (`npx tsc --noEmit`)
+- [ ] Linter passes (`npm run lint`)
+- [ ] Tests pass (`npm run test:run`)
+- [ ] No accessibility regressions
+- [ ] Input handling safe (sanitized)
+- [ ] Database access via Dexie
+- [ ] Critical paths tested
+- [ ] Conservative language (if AI text)
+- [ ] Error handling in place
+- [ ] Logging for debugging
+
+---
+
+## Related Documentation
+
+- **Architecture**: [`./architecture.mdc`](./architecture.mdc)
+- **Product Requirements**: [`../docs/PRD.md`](../docs/PRD.md)
+- **Implementation Plan**: [`../docs/IMPLEMENTATION_PLAN.md`](../docs/IMPLEMENTATION_PLAN.md)
+- **Project Status**: [`../STATUS.md`](../STATUS.md)
+- **Code Rules**: [`../.cursorrules`](../.cursorrules)
+
+---
+
+## Getting Help
+
+1. **Check existing docs**: PRD, Implementation Plan, Architecture
+2. **Search codebase**: Use grep/search for similar patterns
+3. **Review tests**: See how features are tested
+4. **Check logs**: Browser console, network tab
+5. **Ask for clarification**: Better to ask than guess
+
+---
+
+**Last Updated**: 2025-10-28  
+**Version**: 1.0  
+**Maintainer**: Jamie Barter

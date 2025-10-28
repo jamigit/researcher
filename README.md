@@ -1,5 +1,9 @@
 # ME/CFS Research System
 
+**Document Type**: Project Overview  
+**Version**: 1.0  
+**Last Updated**: October 28, 2025
+
 An evidence-based research question and answer system that helps track ME/CFS research developments, understand complex mechanisms, and maintain current knowledge without information overload.
 
 ## Core Purpose
@@ -15,9 +19,10 @@ An evidence-based research question and answer system that helps track ME/CFS re
 
 ## Documentation
 
-📖 **Start here**: [`docs/PRD.md`](./docs/PRD.md) - Complete product requirements and design principles  
-🛠️ **Implementation**: [`docs/IMPLEMENTATION_PLAN.md`](./docs/IMPLEMENTATION_PLAN.md) - 8-week technical implementation plan  
-📊 **Progress**: [`STATUS.md`](./STATUS.md) - Current implementation status
+- **[Product Requirements Document (PRD)](./docs/PRD.md)** - Complete product vision, core principles, and feature specifications
+- **[Implementation Plan](./docs/IMPLEMENTATION_PLAN.md)** - 8-week technical implementation plan with architecture and data models
+- **[Project Status](./STATUS.md)** - Current implementation progress and completed milestones
+- **[Feature Proposals](./docs/proposals/)** - Planned enhancements and future features
 
 ## Core Principles
 
@@ -282,4 +287,10 @@ For issues, questions, or suggestions:
 ---
 
 **Note**: This is a single-user system designed for personal research management. Data is stored locally for privacy.
+
+---
+
+**Document Version**: 1.0  
+**Last Updated**: October 28, 2025  
+**Maintainer**: Jamie Barter
 
