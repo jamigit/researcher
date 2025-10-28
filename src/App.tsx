@@ -12,7 +12,7 @@ import { Dashboard } from './pages/Dashboard';
 import { PaperFeed } from './pages/PaperFeed';
 import { PaperDetailPage } from './pages/PaperDetailPage';
 import { Settings } from './pages/Settings';
-import { AddPaperForm } from './components/papers/AddPaperForm';
+import { AddPaperPage } from './pages/AddPaperPage';
 import { initializeDatabase } from './services/db';
 
 /**
@@ -119,7 +119,7 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/papers" element={<PaperFeed />} />
-            <Route path="/papers/add" element={<AddPaperForm />} />
+            <Route path="/papers/add" element={<AddPaperPage />} />
             <Route path="/papers/:id" element={<PaperDetailPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/settings" element={<Settings />} />

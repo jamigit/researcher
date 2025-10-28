@@ -19,7 +19,8 @@ Phase 1 (Foundation) is complete with smart paper ingestion, AI-powered summariz
 | Phase | Status | Progress | Target Date |
 |-------|--------|----------|-------------|
 | **Phase 1**: Foundation | 🟢 Complete | 100% | Week 2 ✅ |
-| **Phase 2**: Q&A System | 🟡 In Progress | 0% | Week 4 |
+| **DB Enhancement**: Documentation | 🟢 Complete | 100% | Pre-Phase 2 ✅ |
+| **Phase 2**: Q&A System | 🟡 Ready to Start | 0% | Week 4 |
 | **Phase 3**: Explainers | ⚪ Not Started | 0% | Week 6 |
 | **Phase 4**: Automation | ⚪ Not Started | 0% | Week 8 |
 
@@ -90,13 +91,49 @@ Phase 1 (Foundation) is complete with smart paper ingestion, AI-powered summariz
 
 ---
 
+## Database Enhancement Documentation 📋 (Pre-Phase 2)
+
+**Goal**: Document enhanced database architecture with knowledge chunking and semantic search
+
+**Status**: 🟢 **COMPLETE**
+
+- [x] **Database Architecture Review**
+  - [x] Reviewed current schema (v1-v2)
+  - [x] Identified optimization opportunities
+  - [x] Designed knowledge chunking strategy
+  - [x] Planned soft delete + relationship management
+  - [x] Designed hybrid search architecture
+
+- [x] **Documentation Created**
+  - [x] `docs/DATABASE_GUIDE.md` - Comprehensive 12-part guide
+  - [x] Updated `docs/IMPLEMENTATION_PLAN.md` with chunks/embeddings
+  - [x] Added KnowledgeChunk and Embedding entities to data models
+  - [x] Updated database schema diagram
+  - [x] Added ChunkProcessor tool specification
+  - [x] Enhanced EvidenceExtractor for chunk-based extraction
+  - [x] Documented deletion strategies and relationship management
+  - [x] Documented query patterns and performance targets
+
+- [x] **Key Design Decisions Documented**:
+  - Schema v3 with chunks and embeddings tables
+  - Soft delete pattern for data preservation
+  - Hybrid deletion strategy (archive + cascade + preserve)
+  - Index optimization (compound indexes, removed inefficient ones)
+  - Knowledge chunking: 200-500 words, section-aware
+  - Hybrid search: 70% semantic + 30% keyword
+  - Performance targets for 1000+ papers
+
+**Deliverable**: ✅ Complete database architecture documentation ready for implementation
+
+---
+
 ## Phase 2: Q&A System 🟡 (Weeks 3-4)
 
-**Goal**: Research question tracking with conservative evidence synthesis
+**Goal**: Research question tracking with conservative evidence synthesis + knowledge chunking
 
-### Week 3: Evidence Extraction
+### Week 3: Evidence Extraction + Chunking
 
-**Status**: 🟡 **IN PROGRESS** (Starting now)
+**Status**: 🟡 **READY TO START** (Documentation complete, implementation pending)
 
 - [ ] **Day 15-16**: Data Models
   - [ ] Define ResearchQuestion entity
@@ -555,6 +592,17 @@ VITE_NCBI_API_KEY=xxx                # Optional (increases rate limits)
 - ✅ Basic UI components (AddPaper, PaperList, PaperDetail)
 - ✅ Paper ingestion workflow operational
 - ✅ IndexedDB schema v1 configured
+
+### Current Week (2025-10-28)
+- ✅ **Unit Test Infrastructure Complete** - Comprehensive test suite implemented
+  - ✅ 169 tests passing across 6 test files (0 failures)
+  - ✅ Test coverage: Utilities (65 tests), Services (79 tests), Hooks (25 tests)
+  - ✅ Installed fake-indexeddb for realistic IndexedDB testing
+  - ✅ Created test setup, helpers, and factory functions
+  - ✅ All validation criteria met (isolated, repeatable, clean linting)
+  - ✅ Test execution time: ~1.2 seconds
+  - ✅ Documentation: TEST_SUMMARY.md created, README.md updated
+  - 📁 Files: vitest.config.ts, src/test/{setup,helpers}.ts, 6 test files
 
 ---
 

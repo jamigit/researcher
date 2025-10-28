@@ -6,7 +6,7 @@
 import React from 'react';
 import { Calendar, User, ExternalLink, Tag, BookOpen } from 'lucide-react';
 import { Button } from '@/components/common/Button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/common/Card';
+import { Card, CardContent, CardHeader } from '@/components/common/Card';
 import type { ResearchPaper } from '@/types/paper';
 import {
   formatDate,
@@ -68,9 +68,7 @@ export const PaperDetail: React.FC<PaperDetailProps> = ({ paper }) => {
       {/* Main Content Card */}
       <Card padding="lg">
         <CardHeader>
-          <CardTitle>
-            <h1 className="text-2xl md:text-3xl">{paper.title}</h1>
-          </CardTitle>
+          <h1 className="text-2xl md:text-3xl font-semibold text-secondary-900">{paper.title}</h1>
         </CardHeader>
         <CardContent>
           <div className="space-y-6">

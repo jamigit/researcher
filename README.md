@@ -178,7 +178,29 @@ src/
 - `npm run build` - Build for production
 - `npm run preview` - Preview production build
 - `npm run lint` - Run ESLint
-- `npm test` - Run tests (when added)
+- `npm test` - Run tests (169 tests across 6 files)
+
+### Testing
+
+This project has comprehensive unit tests covering:
+- **Utilities**: Validation and formatting functions (65 tests)
+- **Services**: Database operations for papers, questions, findings (79 tests)
+- **Hooks**: React hooks for data management (25 tests)
+
+Test infrastructure:
+- **Vitest** - Fast test runner
+- **fake-indexeddb** - Realistic IndexedDB simulation
+- **Testing Library** - React component/hook testing
+- **Factory functions** - Reusable mock data generators
+
+Run tests:
+```bash
+npm test              # Run all tests once
+npm test -- --watch   # Run in watch mode
+npm test -- --ui      # Run with visual UI
+```
+
+See `TEST_SUMMARY.md` for detailed test documentation.
 
 ### Code Style
 

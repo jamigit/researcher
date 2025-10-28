@@ -1,0 +1,53 @@
+{
+  "description": "Test URLs for ME/CFS research papers - organized by source type",
+  "dois": [
+    {
+      "id": "10.1016/j.cell.2024.02.032",
+      "description": "Sample Cell paper - deep dive into chronic fatigue mechanisms",
+      "type": "doi",
+      "expectedAuthors": ["Smith, J.", "Johnson, A."],
+      "expectedYear": 2024
+    },
+    {
+      "id": "10.1038/s41586-023-06456-x",
+      "description": "Nature paper on immune dysfunction in ME/CFS",
+      "type": "doi"
+    }
+  ],
+  "pubmed": [
+    {
+      "id": "38123456",
+      "description": "PubMed ID for metabolic study",
+      "type": "pmid",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/38123456/"
+    }
+  ],
+  "arxiv": [
+    {
+      "id": "2401.12345",
+      "description": "arXiv preprint on computational ME/CFS models",
+      "type": "arxiv",
+      "url": "https://arxiv.org/abs/2401.12345"
+    }
+  ],
+  "directPdfs": [
+    {
+      "url": "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC9876543/pdf/",
+      "description": "Direct PMC PDF link",
+      "type": "pmc-pdf"
+    }
+  ],
+  "invalidCases": [
+    {
+      "input": "not-a-valid-doi",
+      "description": "Invalid DOI format - should fail validation",
+      "expectedError": "Invalid DOI format"
+    },
+    {
+      "input": "https://example.com/paper.pdf",
+      "description": "Non-academic PDF URL - should fail or warn",
+      "expectedError": "Unrecognized source"
+    }
+  ]
+}
+

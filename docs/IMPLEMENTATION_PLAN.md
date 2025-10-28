@@ -84,9 +84,11 @@
 │  • Questions Table                                      │
 │  • Findings Table                                       │
 │  • Contradictions Table                                 │
+│  • Chunks Table (Phase 2+: knowledge chunking)          │
+│  • Embeddings Table (Phase 3+: semantic search)         │
 │  • Notes Table                                          │
-│  • Preferences Table                                    │
-│  • Explainers Table                                     │
+│  • Searches Table (saved queries)                       │
+│  • Explainers Table (Phase 3: mechanism explanations)   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -377,6 +379,83 @@ interface Note {
 }
 ```
 
+#### Knowledge Chunk Entity (Phase 2+)
+```typescript
+interface KnowledgeChunk {
+  // Identity
+  id: string;                    // UUID
+  paper_id: string;              // Parent paper
+  
+  // Content
+  content: string;               // Text chunk (200-500 words)
+  chunk_index: number;           // Position in paper (0, 1, 2...)
+  section: string;               // Abstract, Methods, Results, Discussion
+  
+  // Semantic metadata (extracted during processing)
+  topics: string[];              // Extracted topics from this chunk
+  key_findings: string[];        // Findings mentioned in this chunk
+  methodologies: string[];       // Methods described in this chunk
+  
+  // Relationships
+  related_question_ids: string[]; // Questions this chunk addresses
+  related_finding_ids: string[];  // Findings extracted from this chunk
+  cited_paper_ids: string[];      // Papers cited within this chunk
+  
+  // Metadata
+  date_created: Date;
+  processing_version: string;     // For regeneration tracking
+}
+```
+
+**Rationale**: Chunking enables:
+- Precise evidence extraction (quote exact paragraphs, not full papers)
+- Better search relevance (chunk-level semantic embeddings)
+- Improved contradiction detection (compare specific claims)
+- Scalable to 1000+ papers (10K chunks × 1536 dims = 60MB embeddings)
+- Click-through to source text in UI
+
+**Chunking Strategy**:
+- Section-aware: Split by Abstract, Methods, Results, Discussion
+- Target size: 200-500 words per chunk
+- Average: 8-10 chunks per paper
+- Preserve paragraph boundaries (never split mid-sentence)
+- Extract topics/keywords per chunk for keyword search
+
+#### Embedding Entity (Phase 3+)
+```typescript
+interface Embedding {
+  // Identity
+  id: string;                    // UUID
+  chunk_id: string;              // Parent chunk
+  
+  // Vector data
+  model: string;                 // 'text-embedding-3-small'
+  dimensions: number;            // 1536
+  vector: Float32Array;          // Compressed vector representation
+  
+  // Metadata
+  date_created: Date;
+}
+```
+
+**Rationale**: Separate storage for performance:
+- Don't load vectors unless searching
+- Can regenerate embeddings without touching chunks
+- Enables model upgrades (keep chunks, regenerate embeddings)
+- Better query performance (chunks table stays small)
+
+**Semantic Search Approach**:
+1. **Keyword Filter**: Fast Dexie query on topics/content (reduces search space)
+2. **Generate Query Embedding**: Convert user query to vector (~200ms)
+3. **Semantic Ranking**: Cosine similarity with chunk embeddings (~50ms for 10K chunks)
+4. **Hybrid Scoring**: `0.7 × semantic + 0.3 × keyword` (tunable)
+5. **Group by Paper**: Return top papers with relevant chunk highlights
+
+**Performance Targets** (1000 papers, 10K chunks):
+- Search response time: < 500ms
+- Memory usage: ~60MB for embeddings (acceptable)
+- Embedding generation: ~2s per paper (background, non-blocking)
+
 ---
 
 ## Part 2: Tool Specifications
@@ -553,16 +632,24 @@ interface PaperFetcher {
 
 ### 2.2 Tool: EvidenceExtractor
 
-**Purpose**: Extract evidence from papers and synthesize conservatively
+**Purpose**: Extract evidence from paper chunks and synthesize conservatively
 
 **Priority**: CRITICAL (Week 2)
+
+**Phase 2 Enhancement**: Works with knowledge chunks for precise evidence extraction
 
 **Interface**:
 ```typescript
 interface EvidenceExtractor {
-  // Main extraction
+  // Main extraction (chunk-based in Phase 2+)
   extract(
     paper: Paper, 
+    question: ResearchQuestion
+  ): Promise<Finding | null>;
+  
+  // Phase 2+: Extract from specific chunks
+  extractFromChunks(
+    chunks: KnowledgeChunk[],
     question: ResearchQuestion
   ): Promise<Finding | null>;
   
@@ -582,6 +669,14 @@ interface Synthesis {
   confidence: number;           // 0-1
   limitations: string[];
   gaps: string[];
+  relevantChunks?: ChunkReference[]; // Phase 2+: Link to source chunks
+}
+
+interface ChunkReference {
+  chunkId: string;
+  paperId: string;
+  section: string;
+  excerpt: string;             // Relevant text snippet
 }
 ```
 
@@ -965,7 +1060,191 @@ Write 2-3 sentences.`;
 
 ---
 
-### 2.4 Tool: MechanismExplainer
+### 2.4 Tool: ChunkProcessor
+
+**Purpose**: Split papers into semantic chunks for precise evidence extraction and search
+
+**Priority**: HIGH (Phase 2, integrated with paper ingestion)
+
+**Interface**:
+```typescript
+interface ChunkProcessor {
+  // Main chunking function
+  chunkPaper(paper: Paper, fullText?: string): Promise<KnowledgeChunk[]>;
+  
+  // Extract topics/metadata from chunk
+  extractMetadata(chunk: string): Promise<ChunkMetadata>;
+  
+  // Validate chunk quality
+  validateChunk(chunk: KnowledgeChunk): boolean;
+}
+
+interface ChunkMetadata {
+  topics: string[];           // Extracted topics/keywords
+  keyFindings: string[];      // Findings mentioned
+  methodologies: string[];    // Methods described
+  citedPapers: string[];      // Papers referenced
+}
+```
+
+**Implementation Requirements**:
+
+1. **Section-Aware Splitting**:
+   ```typescript
+   async function chunkPaper(paper: Paper, fullText?: string): Promise<KnowledgeChunk[]> {
+     // Use abstract if no full text
+     const text = fullText || paper.abstract;
+     
+     // Identify sections (Abstract, Methods, Results, Discussion)
+     const sections = identifySections(text);
+     
+     const chunks: KnowledgeChunk[] = [];
+     let chunkIndex = 0;
+     
+     for (const section of sections) {
+       const sectionChunks = splitSection(section.content, {
+         targetSize: 300,      // words
+         minSize: 150,
+         maxSize: 500,
+         preserveParagraphs: true
+       });
+       
+       for (const content of sectionChunks) {
+         const metadata = await extractMetadata(content);
+         
+         chunks.push({
+           id: generateId(),
+           paperId: paper.id,
+           content: content,
+           chunkIndex: chunkIndex++,
+           section: section.name,
+           topics: metadata.topics,
+           keyFindings: metadata.keyFindings,
+           methodologies: metadata.methodologies,
+           relatedQuestionIds: [],
+           relatedFindingIds: [],
+           citedPaperIds: metadata.citedPapers,
+           dateCreated: new Date(),
+           processingVersion: '1.0'
+         });
+       }
+     }
+     
+     return chunks;
+   }
+   ```
+
+2. **Smart Splitting Rules**:
+   - Never split mid-sentence
+   - Preserve paragraph boundaries
+   - Maintain sentence flow (don't break in middle of list)
+   - Keep tables/figures with their descriptions
+   - Preserve citations with their context
+
+3. **Topic Extraction** (simple NLP):
+   ```typescript
+   function extractTopics(text: string): string[] {
+     // 1. Remove stopwords
+     const words = removeStopwords(text.toLowerCase().split(/\s+/));
+     
+     // 2. Count frequency
+     const freq = countFrequency(words);
+     
+     // 3. Extract biomedical terms (capitalized multi-word phrases)
+     const bioTerms = extractBiomedicalTerms(text);
+     
+     // 4. Combine and rank
+     const topics = [...bioTerms, ...Object.keys(freq).slice(0, 10)];
+     
+     return unique(topics).slice(0, 15); // Top 15 topics per chunk
+   }
+   ```
+
+4. **Quality Validation**:
+   ```typescript
+   function validateChunk(chunk: KnowledgeChunk): boolean {
+     const wordCount = chunk.content.split(/\s+/).length;
+     
+     // Check minimum size
+     if (wordCount < 150) {
+       logger.warn('Chunk too small', { chunkId: chunk.id, wordCount });
+       return false;
+     }
+     
+     // Check maximum size
+     if (wordCount > 600) {
+       logger.warn('Chunk too large', { chunkId: chunk.id, wordCount });
+       return false;
+     }
+     
+     // Check for complete sentences
+     if (!chunk.content.match(/[.!?]$/)) {
+       logger.warn('Chunk ends mid-sentence', { chunkId: chunk.id });
+       return false;
+     }
+     
+     // Check for content quality
+     if (chunk.topics.length === 0) {
+       logger.warn('No topics extracted', { chunkId: chunk.id });
+       // Don't fail, but log
+     }
+     
+     return true;
+   }
+   ```
+
+5. **Integration with Paper Ingestion**:
+   ```typescript
+   async function ingestPaper(input: string): Promise<Paper> {
+     // ... existing paper fetch logic ...
+     
+     // Store paper first (don't block on chunking)
+     await db.papers.add(paper);
+     
+     // Chunk paper in background
+     try {
+       const chunks = await chunkProcessor.chunkPaper(paper);
+       
+       // Validate chunks
+       const validChunks = chunks.filter(c => validateChunk(c));
+       
+       // Store chunks
+       await db.chunks.bulkAdd(validChunks);
+       
+       logger.info('Paper chunked', {
+         paperId: paper.id,
+         chunkCount: validChunks.length
+       });
+       
+       // Generate embeddings asynchronously (don't wait)
+       generateEmbeddingsAsync(validChunks);
+       
+     } catch (error) {
+       logger.error('Chunking failed', { paperId: paper.id, error });
+       // Paper still saved, can retry chunking later
+     }
+     
+     return paper;
+   }
+   ```
+
+**Testing**:
+- Test with 10 papers of varying lengths
+- Verify chunk sizes (150-500 words)
+- Check section preservation
+- Validate topic extraction accuracy
+- Test error handling (malformed text)
+
+**Success Metrics**:
+- Chunking success rate: 95%+
+- Average chunks per paper: 8-10
+- Chunk size distribution: 90% within 200-500 words
+- Processing time: < 500ms per paper
+- Topic extraction quality: 80%+ relevant (human eval)
+
+---
+
+### 2.5 Tool: MechanismExplainer
 
 **Purpose**: Generate plain language explanations of biological mechanisms
 

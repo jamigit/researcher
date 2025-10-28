@@ -1,0 +1,35 @@
+{
+  "status": "ok",
+  "message-type": "work",
+  "message-version": "1.0.0",
+  "message": {
+    "DOI": "10.1016/j.cell.2024.02.032",
+    "type": "journal-article",
+    "title": ["Deep Dive Into Chronic Fatigue: Mechanisms and Pathways"],
+    "author": [
+      {
+        "given": "John",
+        "family": "Smith",
+        "sequence": "first",
+        "affiliation": []
+      },
+      {
+        "given": "Alice",
+        "family": "Johnson",
+        "sequence": "additional",
+        "affiliation": []
+      }
+    ],
+    "container-title": ["Cell"],
+    "published": {
+      "date-parts": [[2024, 3, 15]]
+    },
+    "abstract": "<jats:p>This study investigates the cellular mechanisms underlying myalgic encephalomyelitis/chronic fatigue syndrome (ME/CFS)...</jats:p>",
+    "URL": "https://doi.org/10.1016/j.cell.2024.02.032",
+    "ISSN": ["0092-8674"],
+    "volume": "187",
+    "issue": "6",
+    "page": "1234-1256"
+  }
+}
+

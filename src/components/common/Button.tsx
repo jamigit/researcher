@@ -5,7 +5,7 @@
 
 import React from 'react';
 
-export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'outline';
 export type ButtonSize = 'sm' | 'md' | 'lg';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
@@ -25,6 +25,8 @@ const variantStyles: Record<ButtonVariant, string> = {
     'bg-danger-500 text-white hover:bg-danger-600 focus:ring-danger-500 disabled:bg-danger-300',
   ghost:
     'bg-transparent text-secondary-700 hover:bg-secondary-100 focus:ring-secondary-500 disabled:text-secondary-400',
+  outline:
+    'bg-transparent border-2 border-secondary-300 text-secondary-700 hover:bg-secondary-50 focus:ring-secondary-500 disabled:text-secondary-400',
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
