@@ -79,14 +79,11 @@ function extractTitle(text: string): string {
     .map(line => line.trim())
     .filter(line => line.length > 20 && line.length < 300);
   
-  console.log('Title extraction - candidate lines:', lines.slice(0, 10));
-  
-  // NEW STRATEGY: Look for title after "REVIEW ARTICLE" or similar markers
+  // Strategy 1: Look for title after "REVIEW ARTICLE" or similar markers
   const titleAfterMarker = firstPart.match(/(?:REVIEW ARTICLE|RESEARCH ARTICLE|ORIGINAL ARTICLE|Article)\s+(.+?)(?:\n|Received:|$)/i);
   if (titleAfterMarker && titleAfterMarker[1]) {
     const title = titleAfterMarker[1].replace(/\s+/g, ' ').trim();
     if (title.length > 15 && title.length < 300) {
-      console.log('✅ Title found after marker:', title);
       return title;
     }
   }
@@ -277,10 +274,9 @@ export async function extractMetadataFromPDF(
     const authors = extractAuthors(text);
     const studyType = inferStudyType(text);
     
-    console.log('Extracted metadata:', {
-      title: title.substring(0, 50),
+    console.log('✅ PDF metadata extracted:', {
+      title: title.substring(0, 60) + (title.length > 60 ? '...' : ''),
       authorsCount: authors.length,
-      authors: authors.map(a => ({ name: a.name, affiliation: a.affiliation })),
       doi,
       studyType
     });
