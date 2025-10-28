@@ -1,0 +1,10 @@
+# Backend Rules
+
+- **Phase 1**: No backend - all data stored locally in IndexedDB.
+- **Phase 2**: Netlify Functions proxy for Claude API calls (paper summarization).
+- Validate and sanitize all inputs before storage.
+- No secrets in client code; env vars via Netlify when backend is implemented.
+- Follow OWASP basics; avoid exposing internals.
+- When implementing Netlify Functions: small, focused functions with clear error handling.
+- Use Zod for validation schemas in `src/utils/validation.ts`.
+- Read environment with `process.env` in Netlify Functions; never commit secrets.

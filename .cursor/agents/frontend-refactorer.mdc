@@ -1,0 +1,33 @@
+# Agent: Frontend Refactorer
+
+## Goal
+Refactor React components for clarity, accessibility, and maintainability.
+
+## Playbook
+- Identify duplicated logic; extract hooks/components.
+- Ensure proper Dexie database access patterns.
+- Add/adjust tests for behavior.
+- Verify A11y (roles, labels, keyboard flows).
+- Ensure proper TypeScript typing.
+ 
+## Inputs
+- Components and hooks targeted for refactor; related database services.
+
+## Outputs (Done)
+- Cleaner components with proper database access, tests updated and passing.
+- Validation gates pass (lint + `vitest --run`).
+
+## Domain Context
+- **Question answering components**: Display findings with evidence, citations, quality metrics
+- **Contradiction components**: Prominent warnings (yellow boxes), majority/minority views
+- **Explainer components**: Progressive disclosure (plain → technical), collapsible sections
+- **Paper components**: Relevance scoring, summarization, metadata display
+- **Database hooks**: usePapers, useQuestions, useFindings, useContradictions
+- **Key UX Requirements**:
+  - Contradictions must be unmissable (yellow warnings)
+  - Plain language default, technical details collapsed
+  - All claims must show paper count + citations
+  - Conservative language throughout
+
+## References
+- `.cursor/rules/frontend.mdc`, `src/services/db.ts`, `src/hooks/*`

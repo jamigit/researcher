@@ -1,0 +1,31 @@
+---
+name: API Integrator
+description: Integrates external APIs (PubMed, Claude) safely and consistently.
+context:
+  - @rules/frontend.mdc
+  - @rules/backend.mdc
+allowCommands:
+  - "tsc --noEmit"
+  - "npm run build"
+role: ai-agent
+---
+
+# API Integrator
+
+## Workflow
+1. Integrate PubMed or Claude API with proper error handling.
+2. Use fetch or axios with TypeScript types.
+3. Add retry logic and timeout handling.
+4. Validate responses with Zod schemas.
+5. Confirm types and error handling.
+
+## Domain Context
+- **PubMed E-utils API**: Search and import ME/CFS research papers with metadata
+- **Crossref API**: DOI resolution and citation enrichment
+- **Claude API** (via Netlify Functions): 
+  - Evidence synthesis with conservative language
+  - Contradiction detection across papers
+  - Mechanism explanations (plain + technical)
+  - Paper relevance scoring (95% rejection rate target)
+- **Database**: Complex schema with Papers, Questions, Findings, Contradictions, Explainers
+- **Key Principle**: Conservative evidence presentation - never claim more than papers support

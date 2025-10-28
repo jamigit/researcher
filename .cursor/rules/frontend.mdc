@@ -1,0 +1,35 @@
+# Frontend Rules
+
+- Functional React components with hooks and TypeScript.
+- Local UI state in components; data via Dexie database.
+- Use standard async/await patterns with loading/error state management.
+- Accessibility first: roles, names, labels; keyboard traps prohibited.
+- Access database through `db` from `@/services/db` or `useLiveQuery` hook.
+- Co-locate tests; use Testing Library queries by role/name/label.
+- Import order: React, external, internal (@/), parent, sibling.
+- Example database access:
+```typescript
+import { db } from '@/services/db';
+import { useLiveQuery } from 'dexie-react-hooks';
+
+// Reactive query (auto-updates on data changes)
+const papers = useLiveQuery(() => db.papers.toArray());
+
+// One-time query or mutation
+async function handleSave(input: ResearchPaper) {
+  try {
+    await db.papers.add(input);
+  } catch (e) {
+    console.error('Save failed:', e);
+  }
+}
+```
+ 
+Import order example:
+```typescript
+import { useState } from 'react';
+import { useLiveQuery } from 'dexie-react-hooks';
+import { db } from '@/services/db';
+import type { ResearchPaper } from '@/types/paper';
+import ParentComponent from '../ParentComponent';
+```

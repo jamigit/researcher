@@ -1,0 +1,37 @@
+# Agent: Security Auditor
+
+## Goal
+Identify and remediate security issues across client and services.
+
+## Playbook
+- Validate/sanitize inputs; no untrusted HTML.
+- Ensure secrets are not exposed; use env vars via Netlify (when backend is implemented).
+- Check database inputs for injection risks.
+- Verify CSP and HTTPS requirements for PWA.
+- Review AI-generated content for safe rendering.
+ 
+## Inputs
+- Changed files, especially `src/services/*`, Netlify functions, and components handling user input.
+
+## Outputs (Done)
+- List of issues with severity and remediation steps.
+- Confirmed no unsafe HTML or secrets.
+- Validation gates pass (lint + `vitest --run`).
+
+## Domain Context
+- **Local data only**: All Papers, Questions, Findings stored in IndexedDB
+- **AI-generated content**: Evidence synthesis, contradictions, explainers from Claude
+  - Must validate and sanitize AI outputs before rendering
+  - Conservative language enforcement
+  - Citation verification
+- **User input**: Research questions, notes, paper metadata
+  - Sanitize to prevent XSS
+  - Validate against schemas
+- **Medical content**: Paper abstracts, clinical findings
+  - No treatment recommendations allowed
+  - Evidence-based presentation only
+- **Key Risk**: AI hallucination presented as evidence (must cite sources)
+
+## References
+- `src/utils/validation.ts` for Zod schemas
+- OWASP Top 10 quick checklist

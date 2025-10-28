@@ -1,0 +1,157 @@
+---
+title: Architecture (AI-friendly)
+updated: 2025-10-28
+---
+
+# System Overview
+ME/CFS Research System - An AI-powered evidence synthesis and question-answering system that curates research, detects contradictions, and provides conservative evidence-based answers to research questions.
+
+## System Components
+- **Frontend**: React 18 (Vite), TypeScript, Tailwind CSS, React Router v6
+- **Database**: IndexedDB via Dexie for offline-first local storage
+- **PWA**: Service Worker with offline support, installable
+- **AI Integration**: Claude API via Netlify Functions for:
+  - Evidence synthesis and question answering
+  - Contradiction detection and analysis
+  - Mechanism explanations (plain language + technical)
+  - Paper summarization and relevance scoring
+- **External APIs**: PubMed E-utils, Crossref (paper metadata)
+
+## Data Flow
+```
+User → React Component → Dexie Database Layer → IndexedDB
+                ↓
+         useLiveQuery (reactive) or direct db access
+```
+
+## Database Pattern
+```typescript
+// Direct database access via Dexie singleton
+import { db } from '@/services/db';
+
+// Using direct access with async/await
+const papers = await db.papers.toArray();
+const paper = await db.papers.get(id);
+await db.papers.add(newPaper);
+
+// Using reactive queries with useLiveQuery
+import { useLiveQuery } from 'dexie-react-hooks';
+const papers = useLiveQuery(() => db.papers.toArray());
+```
+
+Quick links:
+- **Database**: `src/services/db.ts` (Dexie configuration and schema)
+- **Storage Service**: `src/services/storage.ts` (import/export utilities)
+- **Hooks**: `src/hooks/usePapers.ts`, `src/hooks/useLocalStorage.ts`, `src/hooks/useOfflineStatus.ts`
+- **Types**: `src/types/paper.ts`, `src/types/database.ts`, `src/types/api.ts`
+
+## Database Schema (Dexie)
+**Core Tables** (see Implementation Plan for full schema):
+- `papers` – Research papers with metadata, relevance scores, summaries
+- `questions` – User research questions with status tracking
+- `findings` – Evidence-based answers with paper support and quality metrics
+- `contradictions` – Detected conflicts with majority/minority views
+- `notes` – User notes associated with papers/questions
+- `searches` – Saved search queries
+- `explainers` – Mechanism explanations (plain + technical)
+- `preferences` – User learning data, topic relevance, quality thresholds
+
+## Request Flows
+
+### Adding a Paper
+1) User fills `AddPaperForm` component
+2) Form validates input with Zod schema
+3) Component calls `db.papers.add(paperData)`
+4) Dexie writes to IndexedDB
+5) Components using `useLiveQuery` automatically re-render
+
+### Viewing Papers
+1) `PaperList` uses `useLiveQuery(() => db.papers.toArray())`
+2) Dexie observes IndexedDB and provides reactive updates
+3) List renders with current data
+4) Any changes trigger automatic re-render
+
+### Question Answering Workflow
+1) User submits research question
+2) System searches relevant papers from database
+3) Sends papers + question to Claude via Netlify Function
+4) Claude performs evidence synthesis with conservative language
+5) System detects contradictions in evidence
+6) Finding stored with paper citations, quality metrics
+7) Contradictions flagged prominently if detected
+
+### Contradiction Detection
+1) New finding analyzed against existing findings
+2) Semantic similarity check (same topic?)
+3) Result conflict detection (findings differ significantly?)
+4) Generate methodological difference analysis
+5) Create conservative interpretation synthesizing both views
+6) Display prominently (yellow warning, can't miss)
+
+### Mechanism Explainer Generation
+1) User requests explanation for biological concept
+2) System retrieves supporting papers
+3) Claude generates plain language explanation
+4) Claude generates technical details
+5) Related concepts linked
+6) Explainer stored and displayed with progressive disclosure
+
+### Data Export/Import
+1) User triggers export in Settings
+2) `exportDatabase()` retrieves all data from Dexie
+3) Data serialized to JSON and downloaded
+4) Import reverses process with `importDatabase()`
+
+## Security
+- **Input sanitization**: All user inputs validated before storage
+- **XSS prevention**: No unsafe HTML rendering without sanitization
+- **Local storage**: All data stays in browser IndexedDB (no external servers in Phase 1)
+- **PWA security**: HTTPS-only service worker, CSP headers
+
+## Performance
+- **Offline-first**: Service Worker caches all assets
+- **Indexed queries**: Dexie indexes on common query fields
+- **Reactive updates**: useLiveQuery minimizes unnecessary re-renders
+- **Code splitting**: Route-based lazy loading
+- **Bundle optimization**: Vite build optimizations
+
+## PWA Features
+- **Installable**: Manifest.json for add to home screen
+- **Offline**: Service Worker caches app shell and data
+- **Responsive**: Mobile-first design with Tailwind
+- **Fast**: Optimized bundle size and loading
+
+---
+
+# @ai-context
+- **Database**: `src/services/db.ts`, `src/services/storage.ts`
+- **Components**: `src/components/papers/*`, `src/components/layout/*`
+- **Hooks**: `src/hooks/usePapers.ts`, `src/hooks/useOfflineStatus.ts`
+- **Types**: `src/types/paper.ts`, `src/types/database.ts`
+
+# @ai-dependencies
+- Dexie/IndexedDB for offline-first storage
+- React Router v6 for navigation
+- Vite PWA plugin for service worker
+- Claude API (Phase 2) via Netlify Functions
+
+# Notes for AI
+- Always access database through `db` from `@/services/db.ts`
+- Use `useLiveQuery` for reactive data that needs to update automatically
+- Use direct `db.*` calls for one-time operations or mutations
+- TypeScript strict mode is enabled - proper typing required
+
+## Core Design Principles (from PRD)
+1. **Conservative Evidence Presentation**: Never claim more than evidence supports
+   - Use "X papers found..." not "The consensus is..."
+   - Always cite sources, show limitations, highlight contradictions
+2. **Contradictions Are VERY Prominent**: Yellow warning boxes, can't miss
+   - Show majority AND minority views with equal respect
+   - Explain methodological differences
+   - Provide conservative interpretation
+3. **Plain Language First**: Progressive disclosure (simple → detailed → technical)
+   - 10th grade reading level for plain language
+   - Technical details collapsed by default
+4. **Weekly Curation**: System targets 5 papers/week (95% rejection rate)
+5. **Evidence-Based Only**: No treatment recommendations, no predictions
+

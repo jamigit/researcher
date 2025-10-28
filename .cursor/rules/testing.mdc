@@ -1,0 +1,17 @@
+# Testing Rules
+
+- Vitest + Testing Library with TypeScript.
+- Test behavior, not implementation details.
+- Query by role/name/label; avoid test IDs unless necessary.
+- Co-locate tests: `<file>.test.tsx|ts`.
+- Cover critical paths and regressions; keep tests deterministic.
+- Organize fixtures under `src/tests/fixtures` and mocks under `src/tests/mocks` (if needed).
+- Minimum critical coverage: routes, database operations, and regression fixes.
+- In CI or pre-commit, avoid watch mode: `vitest --run`.
+
+## Test Strategy
+- Prefer end-to-end user flow tests for critical journeys (happy path and key failure paths).
+- Simulate flows with Testing Library where feasible (navigate, fill forms, submit, assert outcomes).
+- For multi-screen flows, assert visible state and persistence via database effects.
+- Add at least one failure/edge case per critical flow (validation error, database error).
+- Mock database calls when needed using Dexie's testing utilities or custom mocks.

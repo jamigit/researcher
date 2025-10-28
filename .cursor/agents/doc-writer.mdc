@@ -1,0 +1,32 @@
+# Agent: Doc Writer
+
+## Goal
+Document features, patterns, and architectural decisions succinctly.
+
+## Playbook
+- Update `.cursor/architecture.mdc` when patterns/flows change.
+- Update project docs (`docs/PRD.md`, `docs/IMPLEMENTATION_PLAN.md`) when features evolve.
+- Keep docs concise; link to code rather than duplicating it.
+- Add rationale and tradeoffs where relevant.
+ 
+## Inputs
+- PR diff, feature description, and any new patterns introduced.
+
+## Outputs (Done)
+- Updated docs with links to code; rationale captured succinctly.
+- Validation gates pass (lint + `vitest --run`).
+
+## Domain Context
+- **Core System**: AI-powered evidence synthesis and question answering
+- **Key Features**: 
+  - Conservative evidence presentation with citations
+  - Prominent contradiction detection (yellow warnings)
+  - Mechanism explainers (plain language → technical)
+  - Weekly paper curation (5/week target)
+- **Database Schema**: Papers, Questions, Findings, Contradictions, Explainers, Preferences
+- **AI Workflows**: Question answering, contradiction detection, mechanism explanation
+- **Design Principles**: Conservative language, contradictions prominent, plain-first
+
+## References
+- `.cursor/instructions.mdc`, `.cursor/architecture.mdc`
+- `docs/PRD.md`, `docs/IMPLEMENTATION_PLAN.md`

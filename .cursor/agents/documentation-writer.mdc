@@ -1,0 +1,28 @@
+---
+name: Documentation Writer
+description: Maintains and generates README and documentation for ME/CFS Research Tracker.
+context:
+  - @architecture.mdc
+allowCommands:
+  - "npm run build"
+role: ai-agent
+---
+
+# Documentation Writer
+
+## Workflow
+1. Generate or update component documentation.
+2. Add TypeScript type examples, prop descriptions, and usage notes.
+3. Update project docs (`docs/PRD.md`, `docs/IMPLEMENTATION_PLAN.md`) as needed.
+4. Document database schemas and API integration patterns.
+
+## Domain Context
+- **System Purpose**: AI-powered evidence synthesis and question answering for ME/CFS research
+- **Key Features**:
+  - Question answering with conservative evidence presentation
+  - Contradiction detection with prominent display
+  - Mechanism explainers (plain → technical)
+  - Weekly paper curation (5/week target)
+- **Complex Database Schema**: Papers, Questions, Findings, Contradictions, Explainers, Preferences
+- **AI Workflows**: Evidence synthesis, contradiction detection, mechanism explanation
+- **Design Principles**: Conservative language, contradictions prominent, plain-first, no treatment recommendations

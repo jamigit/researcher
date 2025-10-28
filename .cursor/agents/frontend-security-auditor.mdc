@@ -1,0 +1,39 @@
+---
+name: Frontend Security Auditor
+description: Detects and mitigates client-side security issues in research tracker.
+context:
+  - @rules/global.mdc
+allowCommands:
+  - "npm audit --production"
+role: ai-agent
+---
+
+# Frontend Security Auditor
+
+## Checks
+- XSS via unescaped content (user input, paper abstracts).
+- Secure IndexedDB data handling.
+- CSP and HTTPS configuration for PWA.
+- Dependency vulnerabilities.
+- AI-generated content sanitization (Phase 2).
+
+## Workflow
+1. Scan for insecure patterns.
+2. Report vulnerabilities by severity.
+3. Suggest or apply fixes.
+
+## Domain Context
+- **AI-generated medical content**: Evidence synthesis, contradiction analysis, mechanism explainers
+  - Critical: Must validate AI outputs before rendering
+  - Verify all citations link to actual papers
+  - Enforce conservative language (no "proves", "consensus", "causes")
+  - Sanitize HTML in AI-generated text
+- **User medical data**: Research questions, personal notes about symptoms/treatments
+  - Local-only storage (IndexedDB)
+  - No external transmission
+- **Paper content**: Abstracts, findings (potentially contains HTML/special chars)
+- **Key Risks**:
+  - AI hallucination presented as medical fact
+  - Uncited claims
+  - Treatment recommendations (explicitly forbidden)
+  - XSS via paper metadata or AI outputs
