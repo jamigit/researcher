@@ -81,20 +81,28 @@ See [`STATUS.md`](./STATUS.md) for detailed progress.
 
 3. **Set up environment variables**
    ```bash
-   cp .env.example .env
+   # Create .env file (it's gitignored)
+   touch .env
    ```
    
-   Edit `.env` and add your API keys (optional for Phase 1):
-   - `VITE_ANTHROPIC_API_KEY`: For Claude AI summarization (Phase 2)
-   - `VITE_NCBI_EMAIL`: For PubMed API access (Phase 2)
-   - `VITE_NCBI_API_KEY`: Optional, increases PubMed rate limits
+   Add the following to `.env` (see [`docs/guides/ENVIRONMENT_SETUP.md`](./docs/guides/ENVIRONMENT_SETUP.md) for detailed guide):
+   ```env
+   # Required for Q&A features (Phase 2)
+   VITE_ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
+   
+   # Required for smart paper fetching
+   VITE_NCBI_EMAIL=your-email@example.com
+   VITE_NCBI_API_KEY=your_ncbi_key  # Optional, increases rate limits
+   ```
+   
+   **Note**: The Q&A system will gracefully degrade without Claude API, but evidence extraction won't work.
 
 4. **Start development server**
    ```bash
    npm run dev
    ```
    
-   The app will be available at `http://localhost:3000`
+   The app will be available at `http://localhost:5173`
 
 ### Building for Production
 

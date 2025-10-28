@@ -120,29 +120,57 @@ Be extremely careful not to overstate findings. When in doubt, be more conservat
 
 /**
  * Extract evidence from a single paper
- * This would call Claude API in production
- * @ai-technical-debt(medium, 2-3 hours, high) - Integrate Claude API for real extraction
+ * Uses Claude API to extract relevant findings
  */
 export const extractEvidence = async (
   paper: ResearchPaper,
   question: string
 ): Promise<ExtractionResult | null> => {
   try {
-    // TODO: Integrate Claude API call here
-    // For now, return a mock result for testing
     console.log('Extracting evidence from:', paper.title);
     console.log('Question:', question);
 
-    // Mock result - replace with actual API call
-    const mockResult: ExtractionResult = {
-      relevant: false,
-      limitations: [],
-      confidence: 0,
-    };
+    // Import Claude client
+    const { callClaudeJSON, CONSERVATIVE_SYSTEM_PROMPT, isClaudeConfigured } = await import('@/lib/claude');
 
-    return mockResult;
+    // Check if Claude is configured
+    if (!isClaudeConfigured()) {
+      console.warn('Claude API not configured. Skipping extraction for:', paper.title);
+      return {
+        relevant: false,
+        limitations: ['Claude API not configured'],
+        confidence: 0,
+      };
+    }
+
+    // Create extraction prompt
+    const prompt = createExtractionPrompt(paper, question);
+
+    // Call Claude API
+    const result = await callClaudeJSON<ExtractionResult>(prompt, {
+      systemPrompt: CONSERVATIVE_SYSTEM_PROMPT,
+      maxTokens: 2000,
+      temperature: 0.3,
+    });
+
+    // Validate conservative language in finding (if relevant)
+    if (result.relevant && result.finding) {
+      if (!validateConservativeLanguage(result.finding)) {
+        console.error('Conservative language violation in extracted finding');
+        // Still return result but log the violation
+      }
+    }
+
+    console.log('Extraction result:', {
+      relevant: result.relevant,
+      confidence: result.confidence,
+      studyType: result.studyType,
+    });
+
+    return result;
   } catch (error) {
     console.error('Failed to extract evidence:', error);
+    // Return null to skip this paper (don't block the entire workflow)
     return null;
   }
 };

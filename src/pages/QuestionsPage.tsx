@@ -9,10 +9,12 @@ import { useNavigate } from 'react-router-dom';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { QuestionList } from '@/components/questions/QuestionList';
 import { AddQuestionForm } from '@/components/questions/AddQuestionForm';
+import { ClaudeStatusBanner } from '@/components/questions/ClaudeStatusBanner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/common/Card';
 import { Button } from '@/components/common/Button';
 import { Plus, HelpCircle, AlertTriangle } from 'lucide-react';
 import { db } from '@/services/db';
+import { isClaudeConfigured } from '@/lib/claude';
 import type { ResearchQuestion } from '@/types/question';
 
 export const QuestionsPage: React.FC = () => {
@@ -21,6 +23,9 @@ export const QuestionsPage: React.FC = () => {
   
   // Load all questions from database
   const questions = useLiveQuery(() => db.questions.toArray(), []) || [];
+  
+  // Check if Claude API is configured
+  const claudeConfigured = isClaudeConfigured();
 
   return (
     <div className="space-y-6">
@@ -37,6 +42,9 @@ export const QuestionsPage: React.FC = () => {
           {showAddForm ? 'Cancel' : 'Ask Question'}
         </Button>
       </div>
+
+      {/* Claude API Status Banner */}
+      <ClaudeStatusBanner show={!claudeConfigured} />
 
       {/* Info Banner */}
       <Card className="bg-blue-50 border-blue-200">

@@ -227,15 +227,77 @@ const comparePopulations = (
 
 /**
  * Generate biological explanations for contradiction
- * @ai-technical-debt(high, 6-8 hours, high) - Integrate Claude API for explanation generation
+ * Uses Claude API to generate thoughtful explanations
  */
 const generateBiologicalExplanations = async (
   contradiction: Contradiction,
   analysis: Partial<DiscrepancyAnalysis>
 ): Promise<string[]> => {
-  // TODO: Use Claude API to generate biological explanations
-  // For now, return generic explanations based on methodological differences
   console.log('Generating biological explanations for:', contradiction.topic);
+
+  try {
+    // Import Claude client
+    const { callClaudeJSON, CONSERVATIVE_SYSTEM_PROMPT, isClaudeConfigured } = await import('@/lib/claude');
+
+    // Check if Claude is configured
+    if (!isClaudeConfigured()) {
+      console.warn('Claude API not configured. Using fallback explanations.');
+      return getFallbackExplanations(analysis);
+    }
+
+    // Create prompt for explanation generation
+    const prompt = `Analyze this contradiction in ME/CFS research and suggest possible biological explanations.
+
+Contradiction Topic: ${contradiction.topic}
+
+Majority View (${contradiction.majorityView.paperCount} papers):
+${contradiction.majorityView.description}
+Evidence: ${contradiction.majorityView.evidence}
+
+Minority View (${contradiction.minorityView.paperCount} papers):
+${contradiction.minorityView.description}
+Evidence: ${contradiction.minorityView.evidence}
+
+Methodological Differences:
+${analysis.methodologicalDifferences?.join('\n') || 'None identified'}
+
+Timing Differences:
+${analysis.timingDifferences?.join('\n') || 'None identified'}
+
+Task: Generate 2-4 possible biological or methodological explanations for why these findings might differ.
+
+CRITICAL RULES:
+1. Be conservative and evidence-based
+2. Focus on plausible scientific explanations
+3. Consider ME/CFS heterogeneity (different subtypes, severity, triggers)
+4. Consider methodological factors (assays, patient selection, timing)
+5. Keep explanations concise (1-2 sentences each)
+6. Use tentative language: "may", "could", "might"
+
+Output as JSON array of strings:
+{
+  "explanations": ["explanation 1", "explanation 2", ...]
+}`;
+
+    const result = await callClaudeJSON<{ explanations: string[] }>(prompt, {
+      systemPrompt: CONSERVATIVE_SYSTEM_PROMPT,
+      maxTokens: 1500,
+      temperature: 0.4, // Slightly higher for creative explanations
+    });
+
+    return result.explanations || getFallbackExplanations(analysis);
+  } catch (error) {
+    console.error('Failed to generate biological explanations:', error);
+    return getFallbackExplanations(analysis);
+  }
+};
+
+/**
+ * Fallback explanations when Claude is not available
+ */
+const getFallbackExplanations = (
+  analysis: Partial<DiscrepancyAnalysis>
+): string[] => {
   const explanations: string[] = [];
 
   if (
@@ -298,15 +360,72 @@ export const analyzeDiscrepancy = async (
 
 /**
  * Generate conservative interpretation of contradiction
- * @ai-technical-debt(medium, 3-4 hours, high) - Integrate Claude API for interpretation
+ * Uses Claude API for nuanced, evidence-based interpretation
  */
 export const generateConservativeInterpretation = async (
   contradiction: Contradiction,
   analysis: DiscrepancyAnalysis
 ): Promise<string> => {
-  // TODO: Use Claude API to generate nuanced interpretation
-  // For now, create a template-based interpretation
+  try {
+    // Import Claude client
+    const { callClaude, CONSERVATIVE_SYSTEM_PROMPT, isClaudeConfigured } = await import('@/lib/claude');
 
+    // Check if Claude is configured
+    if (!isClaudeConfigured()) {
+      console.warn('Claude API not configured. Using fallback interpretation.');
+      return getFallbackInterpretation(contradiction, analysis);
+    }
+
+    // Create prompt for interpretation
+    const prompt = `Provide a conservative interpretation of this contradiction in ME/CFS research.
+
+Contradiction Topic: ${contradiction.topic}
+
+Majority View (${contradiction.majorityView.paperCount} papers):
+${contradiction.majorityView.description}
+Evidence: ${contradiction.majorityView.evidence}
+
+Minority View (${contradiction.minorityView.paperCount} papers):
+${contradiction.minorityView.description}
+Evidence: ${contradiction.minorityView.evidence}
+
+Methodological Differences:
+${analysis.methodologicalDifferences.join('\n') || 'None identified'}
+
+Possible Explanations:
+${analysis.possibleBiologicalExplanations.join('\n')}
+
+Task: Write a conservative, balanced interpretation (2-4 sentences) that:
+1. Acknowledges both findings and their evidence base (paper counts)
+2. Notes methodological differences if relevant
+3. Suggests why the discrepancy might exist
+4. Emphasizes need for further research
+5. Uses tentative language: "suggests", "may", "appears to"
+
+CRITICAL: Do NOT take sides or claim one finding is "correct". Present the contradiction honestly.
+
+Output as plain text (no JSON, no markdown):`;
+
+    const interpretation = await callClaude(prompt, {
+      systemPrompt: CONSERVATIVE_SYSTEM_PROMPT,
+      maxTokens: 800,
+      temperature: 0.3,
+    });
+
+    return interpretation.trim();
+  } catch (error) {
+    console.error('Failed to generate interpretation:', error);
+    return getFallbackInterpretation(contradiction, analysis);
+  }
+};
+
+/**
+ * Fallback interpretation when Claude is not available
+ */
+const getFallbackInterpretation = (
+  contradiction: Contradiction,
+  analysis: DiscrepancyAnalysis
+): string => {
   const { majorityView, minorityView } = contradiction;
 
   let interpretation = `Most evidence (${majorityView.paperCount} papers) supports ${majorityView.description.toLowerCase()}, `;
