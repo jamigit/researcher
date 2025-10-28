@@ -67,6 +67,8 @@ function extractTitle(text: string): string {
   const abstractIndex = text.search(/\babstract\b/i);
   const firstPart = abstractIndex > 0 ? text.substring(0, abstractIndex) : text.substring(0, 1000);
   
+  console.log('Title extraction - first part preview:', firstPart.substring(0, 500));
+  
   // Remove common header artifacts
   const cleanedText = firstPart
     .replace(/^\s*\d+\s*$/gm, '') // Remove page numbers
@@ -78,6 +80,8 @@ function extractTitle(text: string): string {
     .split('\n')
     .map(line => line.trim())
     .filter(line => line.length > 20 && line.length < 300);
+  
+  console.log('Title extraction - candidate lines:', lines.slice(0, 10));
   
   // Heuristics for title identification:
   // - Longer than 20 chars
