@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, FileText, Settings, Search } from 'lucide-react';
+import { Home, FileText, Settings, Search, HelpCircle } from 'lucide-react';
 
 interface NavItem {
   to: string;
@@ -23,6 +23,11 @@ const navItems: NavItem[] = [
     to: '/papers',
     icon: <FileText className="h-5 w-5" />,
     label: 'Papers',
+  },
+  {
+    to: '/questions',
+    icon: <HelpCircle className="h-5 w-5" />,
+    label: 'Questions',
   },
   {
     to: '/search',

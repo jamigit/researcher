@@ -113,15 +113,15 @@ export const Dashboard: React.FC = () => {
               </div>
             </button>
             <button
-              onClick={() => navigate('/search')}
+              onClick={() => navigate('/questions')}
               className="flex items-center gap-4 p-4 border-2 border-dashed border-secondary-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors text-left"
             >
               <div className="bg-primary-100 p-3 rounded-lg">
                 <FileText className="h-6 w-6 text-primary-600" />
               </div>
               <div>
-                <h3 className="font-medium text-secondary-900">Search Papers</h3>
-                <p className="text-sm text-secondary-600">Find papers in your collection</p>
+                <h3 className="font-medium text-secondary-900">Ask Questions</h3>
+                <p className="text-sm text-secondary-600">Get evidence-based answers</p>
               </div>
             </button>
           </div>

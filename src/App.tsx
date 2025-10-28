@@ -11,6 +11,8 @@ import { Footer } from './components/layout/Footer';
 import { Dashboard } from './pages/Dashboard';
 import { PaperFeed } from './pages/PaperFeed';
 import { PaperDetailPage } from './pages/PaperDetailPage';
+import { QuestionsPage } from './pages/QuestionsPage';
+import { QuestionDetailPage } from './pages/QuestionDetailPage';
 import { Settings } from './pages/Settings';
 import { AddPaperPage } from './pages/AddPaperPage';
 import { initializeDatabase } from './services/db';
@@ -121,6 +123,8 @@ function App() {
             <Route path="/papers" element={<PaperFeed />} />
             <Route path="/papers/add" element={<AddPaperPage />} />
             <Route path="/papers/:id" element={<PaperDetailPage />} />
+            <Route path="/questions" element={<QuestionsPage />} />
+            <Route path="/questions/:id" element={<QuestionDetailPage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/settings" element={<Settings />} />
             <Route
