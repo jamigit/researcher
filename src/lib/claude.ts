@@ -31,6 +31,7 @@ export async function callClaude(
     maxTokens?: number;
     temperature?: number;
     systemPrompt?: string;
+    signal?: AbortSignal;
   } = {}
 ): Promise<string> {
   try {
@@ -38,6 +39,7 @@ export async function callClaude(
       maxTokens = API_CONFIG.CLAUDE_MAX_TOKENS,
       temperature = 0.3, // Low temperature for conservative, consistent outputs
       systemPrompt,
+      signal,
     } = options;
 
     let message;
@@ -55,6 +57,7 @@ export async function callClaude(
           model: API_CONFIG.CLAUDE_MODEL,
           max_tokens: maxTokens,
         }),
+        signal,
       });
 
       if (!response.ok) {
@@ -108,6 +111,7 @@ export async function callClaudeJSON<T>(
     maxTokens?: number;
     temperature?: number;
     systemPrompt?: string;
+    signal?: AbortSignal;
   } = {}
 ): Promise<T> {
   const response = await callClaude(prompt, options);
@@ -197,5 +201,100 @@ Your role is to help patients understand research conservatively and accurately.
 export function isClaudeConfigured(): boolean {
   const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY;
   return !!apiKey && apiKey.length > 0;
+}
+
+/**
+ * Simple resiliency wrapper: timeout, retries with jitter, tiny circuit breaker,
+ * and optional JSON validation via predicate.
+ */
+let __failCount = 0;
+let __breakerUntil = 0;
+
+function breakerOpen(): boolean {
+  return Date.now() < __breakerUntil;
+}
+function onSuccess(): void {
+  __failCount = 0;
+}
+function onFailure(): void {
+  __failCount += 1;
+  if (__failCount >= 5) {
+    __breakerUntil = Date.now() + 60_000; // 60s open
+  }
+}
+
+function isTransient(err: unknown): boolean {
+  const msg = String((err as any)?.message ?? err ?? '');
+  return /timeout|network|502|503|504|429|ECONNREFUSED|ENOTFOUND/i.test(msg);
+}
+
+export async function callLLMResilient<T>(
+  prompt: string,
+  opts: {
+    systemPrompt?: string;
+    maxTokens?: number;
+    temperature?: number;
+    timeoutMs?: number;
+    validate?: (obj: any) => obj is T;
+    reaskPrompt?: (original: string) => string; // for a single re-ask on parse failure
+  } = {}
+): Promise<T> {
+  if (breakerOpen()) {
+    throw new Error('LLM service temporarily unavailable (circuit open)');
+  }
+
+  const attempts = 3;
+  const timeoutMs = opts.timeoutMs ?? 10_000;
+  const start = performance.now?.() ?? Date.now();
+
+  for (let i = 0; i < attempts; i++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const raw = await callClaudeJSON<any>(prompt, {
+        systemPrompt: opts.systemPrompt ?? CONSERVATIVE_SYSTEM_PROMPT,
+        maxTokens: opts.maxTokens,
+        temperature: opts.temperature ?? 0.2,
+        signal: controller.signal,
+      });
+
+      // Optional validation
+      if (opts.validate && !opts.validate(raw)) {
+        // Single re-ask demanding strict JSON
+        if (opts.reaskPrompt) {
+          const strictPrompt = opts.reaskPrompt(prompt);
+          const raw2 = await callClaudeJSON<any>(strictPrompt, {
+            systemPrompt: opts.systemPrompt ?? CONSERVATIVE_SYSTEM_PROMPT,
+            maxTokens: opts.maxTokens,
+            temperature: opts.temperature ?? 0.2,
+            signal: controller.signal,
+          });
+          if (opts.validate(raw2)) {
+            onSuccess();
+            return raw2 as T;
+          }
+        }
+        throw new Error('LLM JSON validation failed');
+      }
+
+      onSuccess();
+      return (opts.validate ? (raw as T) : (raw as T));
+    } catch (err) {
+      if (isTransient(err) && i < attempts - 1) {
+        const backoff = 250 * Math.pow(3, i) + Math.random() * 100;
+        await new Promise((r) => setTimeout(r, backoff));
+        continue;
+      }
+      onFailure();
+      throw err instanceof Error ? err : new Error(String(err));
+    } finally {
+      clearTimeout(timer);
+      const dur = (performance.now?.() ?? Date.now()) - start;
+      console.debug('[LLM]', { attempts: i + 1, durationMs: Math.round(dur) });
+    }
+  }
+
+  // Unreachable due to throw, but TS appeasement
+  throw new Error('LLM call failed');
 }
 

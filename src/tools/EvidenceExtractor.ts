@@ -132,7 +132,7 @@ export const extractEvidence = async (
     console.log('Question:', question);
 
     // Import Claude client
-    const { callClaudeJSON, CONSERVATIVE_SYSTEM_PROMPT, isClaudeConfigured } = await import('@/lib/claude');
+    const { callLLMResilient, CONSERVATIVE_SYSTEM_PROMPT, isClaudeConfigured } = await import('@/lib/claude');
 
     // Check if Claude is configured
     if (!isClaudeConfigured()) {
@@ -147,11 +147,14 @@ export const extractEvidence = async (
     // Create extraction prompt
     const prompt = createExtractionPrompt(paper, question);
 
-    // Call Claude API
-    const result = await callClaudeJSON<ExtractionResult>(prompt, {
+    // Call Claude API via resilient wrapper
+    const result = await callLLMResilient<ExtractionResult>(prompt, {
       systemPrompt: CONSERVATIVE_SYSTEM_PROMPT,
       maxTokens: 2000,
       temperature: 0.3,
+      timeoutMs: 12000,
+      validate: (o: any): o is ExtractionResult => o && typeof o.relevant === 'boolean' && typeof o.confidence === 'number',
+      reaskPrompt: (orig) => `Return ONLY valid minified JSON. Do not include markdown fences.\n${orig}`,
     });
 
     // Validate conservative language in finding (if relevant)

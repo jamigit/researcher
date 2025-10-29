@@ -1,4 +1,5 @@
 import type { ResearchPaper, AutoTag } from '@/types/paper';
+import { callLLMResilient, isClaudeConfigured } from '@/lib/claude';
 
 function normalizeTag(t: string): string {
   return t.trim().toLowerCase().replace(/\s+/g, ' ');
@@ -27,12 +28,15 @@ export async function generateTagsLLM(
 
   // Try Claude for suggestions
   try {
-    const { callClaudeJSON, isClaudeConfigured } = await import('@/lib/claude');
     if (isClaudeConfigured()) {
-      const prompt = `You assign tags to biomedical papers. Prefer existing tags; only create a new tag when no existing tag is suitable. Return JSON { tags: [{ tag, confidence }] }.\nExisting tags: ${existingTags.join(', ')}\nTitle: ${paper.title}\nAbstract/Sections: ${baseContext.slice(0, 3000)}`;
-      const res = await callClaudeJSON<{ tags: Array<{ tag: string; confidence: number }> }>(prompt, {
+      const prompt = `Return ONLY JSON: { "tags": [{ "tag": string, "confidence": number }] }\nYou assign tags to biomedical papers. Prefer existing tags; only create a new tag when no existing tag is suitable.\nExisting tags: ${existingTags.join(', ')}\nTitle: ${paper.title}\nAbstract/Sections: ${baseContext.slice(0, 3000)}`;
+      const res = await callLLMResilient<{ tags: Array<{ tag: string; confidence: number }> }>(prompt, {
         maxTokens: 400,
         temperature: 0.2,
+        timeoutMs: 10000,
+        validate: (o: any): o is { tags: Array<{ tag: string; confidence: number }> } =>
+          !!o && Array.isArray(o.tags) && o.tags.every((t) => typeof t.tag === 'string' && typeof t.confidence === 'number'),
+        reaskPrompt: (orig) => `Return ONLY valid minified JSON matching { "tags": [{ "tag": string, "confidence": number }] }.\n${orig}`,
       });
       const raw = res?.tags || [];
       const mapped: AutoTag[] = raw.slice(0, topN).map((t) => ({ tag: t.tag, confidence: t.confidence, source: 'llm' }));

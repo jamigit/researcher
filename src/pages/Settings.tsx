@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { Download, Upload, Trash2 } from 'lucide-react';
+import { Download, Upload, Trash2, RefreshCcw } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/common/Card';
 import { exportDatabase, importDatabase, clearAllData } from '@/services/db';
@@ -14,6 +14,8 @@ export const Settings: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [isReReviewing, setIsReReviewing] = useState(false);
+  const [reReviewMsg, setReReviewMsg] = useState<string | null>(null);
 
   const handleExport = async () => {
     setIsExporting(true);
@@ -67,6 +69,22 @@ export const Settings: React.FC = () => {
     }
   };
 
+  const handleReReview = async () => {
+    if (!confirm('Re-review all papers? This will parse sections and generate tags where missing.')) return;
+    setIsReReviewing(true);
+    setReReviewMsg(null);
+    try {
+      const { reReviewAllPapers } = await import('@/services/triage');
+      const { processed } = await reReviewAllPapers({ analyzeFullText: true, generateTags: true });
+      setReReviewMsg(`Re-reviewed ${processed} paper(s).`);
+    } catch (e) {
+      console.error(e);
+      alert('Re-review failed. Check console for details.');
+    } finally {
+      setIsReReviewing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -105,6 +123,20 @@ export const Settings: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
+            {/* Re-review existing papers */}
+            <div className="flex items-center justify-between p-4 border border-secondary-200 rounded-lg">
+              <div>
+                <h3 className="font-medium text-secondary-900">Re-review Existing Papers</h3>
+                <p className="text-sm text-secondary-600">Parse full-text sections and generate tags in bulk</p>
+                {reReviewMsg && (
+                  <p className="text-xs text-secondary-700 mt-1">{reReviewMsg}</p>
+                )}
+              </div>
+              <Button onClick={handleReReview} isLoading={isReReviewing} variant="secondary">
+                <RefreshCcw className="h-5 w-5 mr-2" />
+                Re-review
+              </Button>
+            </div>
             {/* Export */}
             <div className="flex items-center justify-between p-4 border border-secondary-200 rounded-lg">
               <div>
