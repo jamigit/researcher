@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Q&A Flow Test</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1a1a1a; color: #0f0; }
+    .success { color: #0f0; }
+    .error { color: #f00; }
+    .warning { color: #ff0; }
+    .info { color: #0ff; }
+    pre { background: #000; padding: 10px; border-radius: 4px; overflow-x: auto; }
+    button { 
+      background: #0f0; 
+      color: #000; 
+      border: none; 
+      padding: 10px 20px; 
+      margin: 5px; 
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:hover { background: #0c0; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Q&A System Diagnostics</h1>
+  
+  <div id="output"></div>
+  
+  <h2>Quick Tests</h2>
+  <button onclick="testPapers()">1. Check Papers</button>
+  <button onclick="testProxy()">2. Check Proxy</button>
+  <button onclick="testClaude()">3. Test Claude API</button>
+  <button onclick="testExtraction()">4. Test Extraction</button>
+  <button onclick="runAll()">▶ Run All Tests</button>
+  
+  <script type="module">
+    const output = document.getElementById('output');
+    
+    function log(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = type;
+      div.textContent = message;
+      output.appendChild(div);
+    }
+    
+    function logJson(obj) {
+      const pre = document.createElement('pre');
+      pre.textContent = JSON.stringify(obj, null, 2);
+      output.appendChild(pre);
+    }
+    
+    window.testPapers = async function() {
+      log('\n📚 Testing Papers...', 'info');
+      try {
+        const { db } = await import('/src/services/db.js');
+        const count = await db.papers.count();
+        
+        if (count === 0) {
+          log(`❌ No papers in database!`, 'error');
+          log('Fix: Refresh page to trigger auto-load', 'warning');
+        } else if (count < 32) {
+          log(`⚠️ Only ${count}/32 papers loaded`, 'warning');
+          log('Fix: Refresh page to reload full seed', 'warning');
+        } else {
+          log(`✅ ${count} papers loaded correctly`, 'success');
+        }
+        
+        // Show sample
+        const sample = await db.papers.limit(3).toArray();
+        log('Sample papers:', 'info');
+        logJson(sample.map(p => ({
+          id: p.id,
+          title: p.title,
+          abstract: p.abstract?.substring(0, 100) + '...'
+        })));
+        
+      } catch (error) {
+        log(`❌ Error: ${error.message}`, 'error');
+      }
+    };
+    
+    window.testProxy = async function() {
+      log('\n🔌 Testing Proxy Server...', 'info');
+      try {
+        const response = await fetch('http://localhost:3001/health');
+        if (response.ok) {
+          const data = await response.json();
+          log('✅ Proxy server running', 'success');
+          logJson(data);
+        } else {
+          log(`❌ Proxy returned ${response.status}`, 'error');
+        }
+      } catch (error) {
+        log('❌ Proxy not running or not accessible', 'error');
+        log('Fix: Run "npm run dev:all"', 'warning');
+      }
+    };
+    
+    window.testClaude = async function() {
+      log('\n🤖 Testing Claude API...', 'info');
+      try {
+        // Check configuration
+        const { isClaudeConfigured } = await import('/src/lib/claude.js');
+        if (!isClaudeConfigured()) {
+          log('❌ Claude API key not configured', 'error');
+          log('Fix: Add VITE_ANTHROPIC_API_KEY to .env', 'warning');
+          return;
+        }
+        log('✅ API key configured', 'success');
+        
+        // Test API call
+        log('Making test API call...', 'info');
+        const response = await fetch('http://localhost:3001/api/claude', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            messages: [{ role: 'user', content: 'Respond with exactly: "API working"' }],
+            model: 'claude-3-5-sonnet-20241022',
+            max_tokens: 50,
+          }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          log('✅ Claude API responding', 'success');
+          logJson({
+            model: data.model,
+            usage: data.usage,
+            response: data.content[0].text.substring(0, 100)
+          });
+        } else {
+          const error = await response.json();
+          log(`❌ API error: ${error.error}`, 'error');
+        }
+      } catch (error) {
+        log(`❌ Error: ${error.message}`, 'error');
+      }
+    };
+    
+    window.testExtraction = async function() {
+      log('\n🔬 Testing Evidence Extraction...', 'info');
+      try {
+        // Get a paper
+        const { db } = await import('/src/services/db.js');
+        const paper = await db.papers.limit(1).first();
+        
+        if (!paper) {
+          log('❌ No papers to test with', 'error');
+          return;
+        }
+        
+        log(`Testing with: ${paper.title}`, 'info');
+        
+        // Test extraction
+        const { extractEvidence } = await import('/src/tools/EvidenceExtractor.js');
+        log('Calling extractEvidence...', 'info');
+        
+        const result = await extractEvidence(
+          paper,
+          'What are the main symptoms of ME/CFS?'
+        );
+        
+        if (!result) {
+          log('❌ Extraction returned null', 'error');
+        } else if (result.relevant) {
+          log('✅ Extraction successful - Paper is relevant', 'success');
+          logJson({
+            relevant: result.relevant,
+            confidence: result.confidence,
+            finding: result.finding?.substring(0, 200) + '...',
+            studyType: result.studyType
+          });
+        } else {
+          log('ℹ️ Extraction successful - Paper not relevant', 'info');
+          log('This is normal - not all papers match every question', 'info');
+        }
+        
+      } catch (error) {
+        log(`❌ Error: ${error.message}`, 'error');
+        console.error('Full error:', error);
+      }
+    };
+    
+    window.runAll = async function() {
+      output.innerHTML = '';
+      log('🚀 Running all diagnostics...\n', 'success');
+      await testPapers();
+      await testProxy();
+      await testClaude();
+      await testExtraction();
+      log('\n✅ All tests complete!', 'success');
+    };
+  </script>
+</body>
+</html>
+

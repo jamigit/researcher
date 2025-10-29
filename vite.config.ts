@@ -49,6 +49,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src')
     }
   },
+  json: {
+    stringify: false // Import JSON as parsed objects
+  },
   build: {
     target: 'esnext',
     minify: 'esbuild',

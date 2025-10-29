@@ -6,13 +6,14 @@
 import React, { useEffect } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Header } from './components/layout/Header';
-import { MobileNavigation } from './components/layout/Navigation';
+import { Navigation, MobileNavigation } from './components/layout/Navigation';
 import { Footer } from './components/layout/Footer';
 import { Dashboard } from './pages/Dashboard';
 import { PaperFeed } from './pages/PaperFeed';
 import { PaperDetailPage } from './pages/PaperDetailPage';
 import { QuestionsPage } from './pages/QuestionsPage';
 import { QuestionDetailPage } from './pages/QuestionDetailPage';
+import { SearchPage } from './pages/SearchPage';
 import { Settings } from './pages/Settings';
 import { AddPaperPage } from './pages/AddPaperPage';
 import { initializeDatabase } from './services/db';
@@ -63,35 +64,34 @@ class ErrorBoundary extends React.Component<
 
 /**
  * Main App Layout
+ * Responsive layout with sidebar nav on desktop/tablet and bottom nav on mobile
  */
 const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return (
     <div className="min-h-screen flex flex-col bg-secondary-50">
       <Header />
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-20 md:pb-8">
-        {children}
-      </main>
+      
+      {/* Main content area with sidebar on desktop/tablet */}
+      <div className="flex-1 flex">
+        {/* Sidebar navigation - hidden on mobile, shown on tablet/desktop */}
+        <aside className="hidden md:block w-64 flex-shrink-0">
+          <div className="sticky top-16 h-[calc(100vh-4rem)]">
+            <Navigation />
+          </div>
+        </aside>
+        
+        {/* Main content */}
+        <main className="flex-1 w-full px-4 sm:px-6 lg:px-8 py-8 pb-20 md:pb-8 overflow-x-hidden">
+          <div className="max-w-5xl mx-auto">
+            {children}
+          </div>
+        </main>
+      </div>
+      
       <Footer />
+      
+      {/* Mobile bottom navigation - shown only on mobile */}
       <MobileNavigation />
-    </div>
-  );
-};
-
-/**
- * Search page placeholder
- */
-const SearchPage: React.FC = () => {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold text-secondary-900">Search</h1>
-        <p className="text-secondary-600 mt-1">Search functionality coming soon</p>
-      </div>
-      <div className="bg-white rounded-lg border border-secondary-200 p-12 text-center">
-        <p className="text-secondary-600">
-          Search and filtering features will be added in the next phase.
-        </p>
-      </div>
     </div>
   );
 };
@@ -101,10 +101,20 @@ const SearchPage: React.FC = () => {
  */
 function App() {
   useEffect(() => {
-    // Initialize the database on app startup
-    initializeDatabase().catch((error) => {
-      console.error('Failed to initialize database:', error);
-    });
+    // Initialize the database and load seed data on app startup
+    const initApp = async () => {
+      try {
+        await initializeDatabase();
+        
+        // Auto-load seed data if database is empty
+        const { autoSeedIfNeeded } = await import('./services/seedData');
+        await autoSeedIfNeeded();
+      } catch (error) {
+        console.error('Failed to initialize app:', error);
+      }
+    };
+    
+    initApp();
 
     // Register service worker for PWA
     if ('serviceWorker' in navigator) {
@@ -116,7 +126,12 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <AppLayout>
           <Routes>
             <Route path="/" element={<Dashboard />} />

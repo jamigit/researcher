@@ -12,7 +12,7 @@ export const API_CONFIG = {
   PUBMED_BASE_URL: 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils',
   PUBMED_RATE_LIMIT: 3, // requests per second without API key
   PUBMED_RATE_LIMIT_WITH_KEY: 10, // requests per second with API key
-  CLAUDE_MODEL: 'claude-3-5-sonnet-20241022',
+  CLAUDE_MODEL: 'claude-3-5-haiku-20241022', // Claude 3.5 Haiku (faster, cheaper)
   CLAUDE_MAX_TOKENS: 4096,
 } as const;
 

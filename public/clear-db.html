@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Clear Database</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      max-width: 600px;
+      margin: 50px auto;
+      padding: 20px;
+      text-align: center;
+    }
+    button {
+      background: #ef4444;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      margin: 10px;
+    }
+    button:hover {
+      background: #dc2626;
+    }
+    .success {
+      background: #10b981;
+    }
+    .success:hover {
+      background: #059669;
+    }
+    #status {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      display: none;
+    }
+    .info { background: #dbeafe; color: #1e40af; }
+    .error { background: #fee2e2; color: #991b1b; }
+    .ok { background: #d1fae5; color: #065f46; }
+  </style>
+</head>
+<body>
+  <h1>🧹 Clear All Data</h1>
+  <p>This will delete all papers, questions, findings, and notes from your browser.</p>
+  
+  <button onclick="clearAll()">Clear All Data</button>
+  <button onclick="window.location.href='/'" class="success">Back to App</button>
+  
+  <div id="status"></div>
+  
+  <script type="module">
+    window.clearAll = async function() {
+      const status = document.getElementById('status');
+      status.style.display = 'block';
+      status.className = 'info';
+      status.textContent = 'Clearing database...';
+      
+      try {
+        // Import and clear database
+        const { clearAllData } = await import('/src/services/db.js');
+        await clearAllData();
+        
+        // Clear localStorage
+        localStorage.clear();
+        
+        // Clear sessionStorage
+        sessionStorage.clear();
+        
+        status.className = 'ok';
+        status.innerHTML = `
+          ✅ All data cleared successfully!<br><br>
+          <strong>Next steps:</strong><br>
+          1. Close this tab<br>
+          2. Refresh the main app (Cmd+R)<br>
+          3. Seed data will auto-load (32 papers)
+        `;
+      } catch (error) {
+        status.className = 'error';
+        status.textContent = '❌ Error: ' + error.message;
+        console.error('Clear failed:', error);
+      }
+    };
+  </script>
+</body>
+</html>
+

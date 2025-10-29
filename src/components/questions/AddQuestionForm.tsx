@@ -6,8 +6,10 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/common/Button';
+import { LoadingSpinner } from '@/components/common/LoadingSpinner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/common/Card';
 import { answerQuestion } from '@/workflows/questionAnswering';
+import { Search, FileSearch, AlertTriangle } from 'lucide-react';
 import type { ResearchQuestion } from '@/types/question';
 
 export interface AddQuestionFormProps {
@@ -22,6 +24,7 @@ export const AddQuestionForm: React.FC<AddQuestionFormProps> = ({
   const [questionText, setQuestionText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [processingStep, setProcessingStep] = useState<string>('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,14 +36,22 @@ export const AddQuestionForm: React.FC<AddQuestionFormProps> = ({
 
     setIsSubmitting(true);
     setError(null);
+    setProcessingStep('Searching papers...');
 
     try {
+      // Simulate progress updates (actual workflow doesn't emit progress yet)
+      setTimeout(() => setProcessingStep('Extracting evidence...'), 1000);
+      setTimeout(() => setProcessingStep('Detecting contradictions...'), 3000);
+      setTimeout(() => setProcessingStep('Synthesizing answer...'), 5000);
+      
       const question = await answerQuestion(questionText.trim());
       setQuestionText('');
+      setProcessingStep('');
       onQuestionAdded?.(question);
     } catch (err) {
       console.error('Failed to add question:', err);
       setError('Failed to process question. Please try again.');
+      setProcessingStep('');
     } finally {
       setIsSubmitting(false);
     }
@@ -99,8 +110,48 @@ export const AddQuestionForm: React.FC<AddQuestionFormProps> = ({
 
           {isSubmitting && (
             <div className="p-4 bg-blue-50 border border-blue-200 rounded-md">
-              <p className="text-sm text-blue-800">
-                Searching papers and extracting evidence... This may take a moment.
+              <div className="flex items-center gap-3 mb-3">
+                <LoadingSpinner size="sm" />
+                <p className="text-sm font-medium text-blue-900">
+                  Processing your question...
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm text-blue-800">
+                  {processingStep.includes('Searching') ? (
+                    <Search className="w-4 h-4 animate-pulse" />
+                  ) : (
+                    <Search className="w-4 h-4 text-blue-400" />
+                  )}
+                  <span className={processingStep.includes('Searching') ? 'font-medium' : ''}>
+                    Searching papers
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-blue-800">
+                  {processingStep.includes('Extracting') ? (
+                    <FileSearch className="w-4 h-4 animate-pulse" />
+                  ) : (
+                    <FileSearch className="w-4 h-4 text-blue-400" />
+                  )}
+                  <span className={processingStep.includes('Extracting') ? 'font-medium' : ''}>
+                    Extracting evidence
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-sm text-blue-800">
+                  {processingStep.includes('Detecting') ? (
+                    <AlertTriangle className="w-4 h-4 animate-pulse" />
+                  ) : (
+                    <AlertTriangle className="w-4 h-4 text-blue-400" />
+                  )}
+                  <span className={processingStep.includes('Detecting') ? 'font-medium' : ''}>
+                    Detecting contradictions
+                  </span>
+                </div>
+              </div>
+              
+              <p className="text-xs text-blue-600 mt-3">
+                This may take 10-20 seconds depending on your paper collection size.
               </p>
             </div>
           )}

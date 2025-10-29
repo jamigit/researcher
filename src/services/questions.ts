@@ -4,7 +4,7 @@
  */
 
 import { db } from './db';
-import type { ResearchQuestion } from '@/types/question';
+import type { ResearchQuestion, QuestionVersion } from '@/types/question';
 import type { Finding } from '@/types/finding';
 import type { Contradiction } from '@/types/contradiction';
 import { QuestionStatus } from '@/types/question';
@@ -270,6 +270,86 @@ export const searchQuestions = async (
   } catch (error) {
     console.error('Failed to search questions:', error);
     throw new Error('Failed to search questions');
+  }
+};
+
+/**
+ * Update notes on a finding
+ */
+export const updateFindingNotes = async (
+  findingId: string,
+  notes: string
+): Promise<void> => {
+  try {
+    await db.findings.update(findingId, {
+      userNotes: notes,
+      notesLastUpdated: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Failed to update finding notes:', error);
+    throw new Error('Failed to update finding notes');
+  }
+};
+
+/**
+ * Save a question version to history
+ */
+export const saveQuestionVersion = async (
+  questionId: string,
+  version: QuestionVersion
+): Promise<void> => {
+  try {
+    await db.questionVersions.add({
+      ...version,
+      questionId,
+    });
+  } catch (error) {
+    console.error('Failed to save question version:', error);
+    throw new Error('Failed to save question version');
+  }
+};
+
+/**
+ * Get all versions for a question
+ */
+export const getQuestionVersions = async (
+  questionId: string
+): Promise<QuestionVersion[]> => {
+  try {
+    const versions = await db.questionVersions
+      .where('questionId')
+      .equals(questionId)
+      .sortBy('versionNumber');
+    
+    // Strip out the questionId field before returning
+    return versions.map(({ questionId: _, ...version }) => version as QuestionVersion);
+  } catch (error) {
+    console.error('Failed to get question versions:', error);
+    throw new Error('Failed to get question versions');
+  }
+};
+
+/**
+ * Get a specific version of a question
+ */
+export const getQuestionVersion = async (
+  questionId: string,
+  versionNumber: number
+): Promise<QuestionVersion | undefined> => {
+  try {
+    const version = await db.questionVersions
+      .where(['questionId', 'versionNumber'])
+      .equals([questionId, versionNumber])
+      .first();
+    
+    if (!version) return undefined;
+    
+    // Strip out the questionId field before returning (using _ to indicate intentionally unused)
+    const { questionId: _questionId, ...versionData } = version;
+    return versionData as QuestionVersion;
+  } catch (error) {
+    console.error('Failed to get question version:', error);
+    throw new Error('Failed to get question version');
   }
 };
 

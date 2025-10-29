@@ -8,6 +8,22 @@ import type { Contradiction } from './contradiction';
 import type { Note } from './database';
 
 /**
+ * Version snapshot of a research question
+ * Tracks historical states for comparison
+ */
+export interface QuestionVersion {
+  id: string; // UUID for this version
+  versionNumber: number; // 1, 2, 3...
+  dateGenerated: string; // ISO 8601 timestamp
+  findings: Finding[]; // Findings at this version
+  contradictions: Contradiction[];
+  paperCount: number;
+  confidence: number;
+  status: QuestionStatus;
+  papersUsed: string[]; // Paper IDs that contributed
+}
+
+/**
  * Status of research question based on available evidence
  */
 export enum QuestionStatus {
@@ -43,6 +59,12 @@ export interface ResearchQuestion {
   isPriority: boolean; // User-marked priority
   userNotes: Note[]; // User annotations
   relatedQuestions: string[]; // IDs of related questions
+
+  // Version history
+  currentVersion: number; // Current version number (starts at 1)
+  versions: QuestionVersion[]; // Full history (keep all)
+  orphanedNotes?: Array<[string, string]>; // [findingText, note] - notes from removed findings
+  papersUsed: string[]; // Paper IDs used in current version
 }
 
 /**
@@ -97,6 +119,10 @@ export const createResearchQuestion = (
     isPriority: false,
     userNotes: [],
     relatedQuestions: [],
+    currentVersion: 1,
+    versions: [],
+    orphanedNotes: [],
+    papersUsed: [],
   };
 };
 

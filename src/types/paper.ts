@@ -89,6 +89,9 @@ export interface ResearchPaper {
   abstract: string;
   publicationDate: string; // ISO 8601 date
   journal?: string;
+  volume?: string;
+  issue?: string;
+  pages?: string;
   url?: string;
 
   // Classification

@@ -83,6 +83,10 @@ export const createMockQuestion = (
     gaps: [],
     userNotes: [],
     relatedQuestions: [],
+    currentVersion: 1,
+    versions: [],
+    orphanedNotes: [],
+    papersUsed: [],
     ...overrides,
   };
 };

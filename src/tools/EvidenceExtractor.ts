@@ -104,7 +104,7 @@ CRITICAL RULES FOR CONSERVATIVE EVIDENCE EXTRACTION:
 6. Never use words like "proves", "confirms", "always", "never"
 7. Always use tentative language: "suggests", "may indicate", "appears to"
 
-Output JSON format:
+Output ONLY valid JSON (no explanations, no markdown, no additional text):
 {
   "relevant": true/false,
   "finding": "exact description of what was found (if relevant)",
@@ -115,6 +115,7 @@ Output JSON format:
   "confidence": 0-1 (how confident in this extraction)
 }
 
+IMPORTANT: Return ONLY the JSON object above. Do not include any explanatory text before or after the JSON.
 Be extremely careful not to overstate findings. When in doubt, be more conservative.`;
 };
 

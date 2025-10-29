@@ -42,9 +42,10 @@
 import Dexie, { type Table } from 'dexie';
 import type { ResearchPaper } from '@/types/paper';
 import type { Note, SavedSearch } from '@/types/database';
-import type { ResearchQuestion } from '@/types/question';
+import type { ResearchQuestion, QuestionVersion } from '@/types/question';
 import type { Finding } from '@/types/finding';
 import type { Contradiction } from '@/types/contradiction';
+import type { MechanismExplainer } from '@/types/mechanism';
 
 /**
  * Database class definition extending Dexie
@@ -60,6 +61,10 @@ export class ResearchTrackerDB extends Dexie {
   questions!: Table<ResearchQuestion, string>;
   findings!: Table<Finding, string>;
   contradictions!: Table<Contradiction, string>;
+  // Phase 3 tables
+  explainers!: Table<MechanismExplainer, string>;
+  // Phase 4 tables
+  questionVersions!: Table<QuestionVersion & { questionId: string }, string>;
 
   constructor() {
     super('ResearchTrackerDB');
@@ -97,7 +102,38 @@ export class ResearchTrackerDB extends Dexie {
       contradictions: 'id, findingId, dateDetected, status, severity',
     });
 
-    // Schema version 3 - PLANNED (Week 5+): Knowledge Chunks + Semantic Search
+    // Schema version 3 - Phase 3: Mechanism Explainers (Week 5-6)
+    // Add explainers table for plain language + technical explanations
+    this.version(3).stores({
+      // Existing tables (unchanged)
+      papers:
+        'id, pubmedId, doi, title, dateAdded, publicationDate, readStatus, importance, *categories, *tags',
+      notes: 'id, paperId, dateCreated, dateModified, *tags',
+      searches: 'id, name, dateCreated, lastUsed',
+      questions: 'id, question, dateCreated, lastUpdated, status, isPriority',
+      findings: 'id, questionId, dateCreated, hasContradiction',
+      contradictions: 'id, findingId, dateDetected, status, severity',
+      // New: Explainers table with index on mechanism name for lookup
+      explainers: 'id, mechanism, dateCreated, lastUpdated',
+    });
+
+    // Schema version 4 - Phase 4: Question Version History
+    // Add version tracking for questions to enable refresh and comparison
+    this.version(4).stores({
+      // Existing tables (unchanged)
+      papers:
+        'id, pubmedId, doi, title, dateAdded, publicationDate, readStatus, importance, *categories, *tags',
+      notes: 'id, paperId, dateCreated, dateModified, *tags',
+      searches: 'id, name, dateCreated, lastUsed',
+      questions: 'id, question, dateCreated, lastUpdated, status, isPriority, currentVersion',
+      findings: 'id, questionId, dateCreated, hasContradiction',
+      contradictions: 'id, findingId, dateDetected, status, severity',
+      explainers: 'id, mechanism, dateCreated, lastUpdated',
+      // New: Question versions for tracking answer evolution
+      questionVersions: 'id, questionId, versionNumber, dateGenerated',
+    });
+
+    // Schema version 5 - PLANNED (Week 7+): Knowledge Chunks + Semantic Search
     // 
     // WILL ADD:
     // - chunks: 'id, paperId, *topics, *relatedQuestionIds, chunkIndex'
@@ -177,6 +213,8 @@ export const clearAllData = async (): Promise<void> => {
     await db.questions.clear();
     await db.findings.clear();
     await db.contradictions.clear();
+    await db.explainers.clear();
+    await db.questionVersions.clear();
     console.log('All database data cleared');
   } catch (error) {
     console.error('Failed to clear database:', error);
@@ -194,6 +232,8 @@ export const exportDatabase = async (): Promise<{
   questions: ResearchQuestion[];
   findings: Finding[];
   contradictions: Contradiction[];
+  explainers: MechanismExplainer[];
+  questionVersions: Array<QuestionVersion & { questionId: string }>;
 }> => {
   try {
     const papers = await db.papers.toArray();
@@ -202,7 +242,9 @@ export const exportDatabase = async (): Promise<{
     const questions = await db.questions.toArray();
     const findings = await db.findings.toArray();
     const contradictions = await db.contradictions.toArray();
-    return { papers, notes, searches, questions, findings, contradictions };
+    const explainers = await db.explainers.toArray();
+    const questionVersions = await db.questionVersions.toArray();
+    return { papers, notes, searches, questions, findings, contradictions, explainers, questionVersions };
   } catch (error) {
     console.error('Failed to export database:', error);
     throw error;
@@ -219,6 +261,8 @@ export const importDatabase = async (data: {
   questions?: ResearchQuestion[];
   findings?: Finding[];
   contradictions?: Contradiction[];
+  explainers?: MechanismExplainer[];
+  questionVersions?: Array<QuestionVersion & { questionId: string }>;
 }): Promise<void> => {
   try {
     if (data.papers) {
@@ -238,6 +282,12 @@ export const importDatabase = async (data: {
     }
     if (data.contradictions) {
       await db.contradictions.bulkPut(data.contradictions);
+    }
+    if (data.explainers) {
+      await db.explainers.bulkPut(data.explainers);
+    }
+    if (data.questionVersions) {
+      await db.questionVersions.bulkPut(data.questionVersions);
     }
     console.log('Database imported successfully');
   } catch (error) {
