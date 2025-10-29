@@ -65,6 +65,8 @@ export class ResearchTrackerDB extends Dexie {
   explainers!: Table<MechanismExplainer, string>;
   // Phase 4 tables
   questionVersions!: Table<QuestionVersion & { questionId: string }, string>;
+  // Discovery system tables
+  discoveredPapers!: Table<import('@/types/discovery').DiscoveredPaper, string>;
 
   constructor() {
     super('ResearchTrackerDB');
@@ -132,8 +134,25 @@ export class ResearchTrackerDB extends Dexie {
       // New: Question versions for tracking answer evolution
       questionVersions: 'id, questionId, versionNumber, dateGenerated',
     });
+    
+    // Schema version 5 - Discovery System (Phase 5)
+    // Add discovered papers queue for automated discovery
+    this.version(5).stores({
+      // Existing tables (unchanged from v4)
+      papers:
+        'id, pubmedId, doi, title, dateAdded, publicationDate, readStatus, importance, *categories, *tags',
+      notes: 'id, paperId, dateCreated, dateModified, *tags',
+      searches: 'id, name, dateCreated, lastUsed',
+      questions: 'id, question, dateCreated, lastUpdated, status, isPriority, currentVersion',
+      findings: 'id, questionId, dateCreated, hasContradiction',
+      contradictions: 'id, findingId, dateDetected, status, severity',
+      explainers: 'id, mechanism, dateCreated, lastUpdated',
+      questionVersions: 'id, questionId, versionNumber, dateGenerated',
+      // New: Discovery queue for papers found by automated discovery
+      discoveredPapers: 'id, source, dateDiscovered, reviewStatus, relevanceScore',
+    });
 
-    // Schema version 5 - PLANNED (Week 7+): Knowledge Chunks + Semantic Search
+    // Schema version 6 - PLANNED (Week 7+): Knowledge Chunks + Semantic Search
     // 
     // WILL ADD:
     // - chunks: 'id, paperId, *topics, *relatedQuestionIds, chunkIndex'
