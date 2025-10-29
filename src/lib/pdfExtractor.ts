@@ -4,7 +4,8 @@
  */
 
 import * as pdfjsLib from 'pdfjs-dist';
-import type { ResearchPaper, Author } from '@/types/paper';
+import type { ResearchPaper, Author, PaperSections } from '@/types/paper';
+import { splitIntoSections } from '@/utils/chunking';
 import { ReadStatus, Importance, Category, StudyType } from '@/types/paper';
 
 // Configure PDF.js worker - using local file to avoid CORS issues
@@ -273,6 +274,7 @@ export async function extractMetadataFromPDF(
     const publicationDate = extractPublicationDate(text);
     const authors = extractAuthors(text);
     const studyType = inferStudyType(text);
+    const sections: PaperSections = splitIntoSections(text);
     
     console.log('✅ PDF metadata extracted:', {
       title: title.substring(0, 60) + (title.length > 60 ? '...' : ''),
@@ -315,6 +317,8 @@ export async function extractMetadataFromPDF(
       importance: Importance.MEDIUM,
       fullTextAvailable: true,
       pdfUrl: URL.createObjectURL(file),
+      fullText: text,
+      sections,
     };
   } catch (error) {
     console.error('PDF metadata extraction error:', error);
@@ -372,12 +376,11 @@ export async function processPDFUpload(
     const metadata = await extractMetadataFromPDF(file);
 
     // Try to extract full text (for future semantic search)
-    const text = await extractTextFromPDF(file);
-    
-    // Store text if extracted successfully
+    const text = metadata.fullText ?? (await extractTextFromPDF(file));
     if (text && text.length > 100) {
-      // Could store this in a separate field for full-text search
-      console.log('Extracted text length:', text.length);
+      // Attach to metadata for persistence
+      (metadata as any).fullText = text;
+      (metadata as any).sections = metadata.sections ?? splitIntoSections(text);
     }
 
     return metadata;

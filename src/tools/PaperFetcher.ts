@@ -15,6 +15,56 @@ import type {
 import { InputType as InputTypeEnum } from '@/types/fetcher';
 import { StudyType, Category, ReadStatus, Importance } from '@/types/paper';
 import { fetchWithRetry } from '@/lib/http';
+/**
+ * Merge two Partial<ResearchPaper> objects, preferring primary fields and
+ * filling missing/weak fields from secondary. Arrays are merged uniquely.
+ */
+function mergePaperMetadata(
+  primary: Partial<ResearchPaper>,
+  secondary?: Partial<ResearchPaper>
+): Partial<ResearchPaper> {
+  if (!secondary) return primary;
+
+  const out: Partial<ResearchPaper> = { ...primary };
+
+  const pick = <K extends keyof ResearchPaper>(key: K) => {
+    const a = primary[key];
+    const b = secondary[key];
+    // prefer a if truthy/sufficient, otherwise b
+    if (a === undefined || a === null || (typeof a === 'string' && a.trim() === '')) {
+      if (b !== undefined) (out as any)[key] = b;
+    }
+  };
+
+  pick('title');
+  pick('abstract');
+  pick('journal');
+  pick('publicationDate');
+  pick('doi');
+
+  // Authors: merge unique by name
+  const authorsA = primary.authors || [];
+  const authorsB = secondary.authors || [];
+  if (authorsB.length > 0) {
+    const byName = new Map<string, Author>();
+    for (const a of [...authorsA, ...authorsB]) {
+      if (!a?.name) continue;
+      byName.set(a.name, a);
+    }
+    (out as any).authors = Array.from(byName.values());
+  }
+
+  // Categories/Tags merge
+  const catsA = (primary.categories as any) || [];
+  const catsB = (secondary.categories as any) || [];
+  (out as any).categories = Array.from(new Set<string>([...catsA, ...catsB])) as any;
+
+  const tagsA = (primary.tags as any) || [];
+  const tagsB = (secondary.tags as any) || [];
+  (out as any).tags = Array.from(new Set<string>([...tagsA, ...tagsB]));
+
+  return out;
+}
 
 /**
  * Identify the type of input provided
@@ -461,7 +511,17 @@ export async function fetchPaper(
     // Strategy 1: PubMed (PMID or PubMed URL)
     if (inputType === InputTypeEnum.PMID) {
       const result = await fetchFromPubMed(input);
-      if (result.success) return result;
+      if (result.success) {
+        // Enrich with Crossref if DOI present and fields missing
+        const primary = result.paper!;
+        if (primary && (!primary.abstract || (primary.authors?.length ?? 0) === 0) && primary.doi) {
+          const cr = await fetchFromCrossref(primary.doi);
+          if (cr.success) {
+            return { success: true, paper: mergePaperMetadata(primary, cr.paper), source: 'pubmed+crossref' };
+          }
+        }
+        return result;
+      }
     }
 
     if (inputType === InputTypeEnum.PUBMED_URL) {
@@ -475,7 +535,17 @@ export async function fetchPaper(
     // Strategy 2: Crossref (DOI)
     if (inputType === InputTypeEnum.DOI) {
       const result = await fetchFromCrossref(input);
-      if (result.success) return result;
+      if (result.success) {
+        // Try DOI resolver to enrich abstract/journal if missing
+        const primary = result.paper!;
+        if (!primary.abstract || !primary.journal) {
+          const resolverResult = await fetchFromDOIResolver(input);
+          if (resolverResult.success) {
+            return { success: true, paper: mergePaperMetadata(primary, resolverResult.paper), source: 'crossref+doi_resolver' };
+          }
+        }
+        return result;
+      }
 
       // Fallback to DOI resolver
       const resolverResult = await fetchFromDOIResolver(input);
@@ -492,7 +562,14 @@ export async function fetchPaper(
       if (doi) {
         console.log('Extracted DOI from URL:', doi);
         const result = await fetchFromCrossref(doi);
-        if (result.success) return result;
+        if (result.success) {
+          // Also attempt DOI resolver enrichment
+          const resolverResult = await fetchFromDOIResolver(doi);
+          if (resolverResult.success) {
+            return { success: true, paper: mergePaperMetadata(result.paper!, resolverResult.paper), source: 'crossref+doi_resolver' };
+          }
+          return result;
+        }
 
         // Fallback to DOI resolver
         const resolverResult = await fetchFromDOIResolver(doi);

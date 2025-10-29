@@ -75,6 +75,27 @@ export interface PaperSummary {
 }
 
 /**
+ * Auto-generated tagging metadata
+ */
+export interface AutoTag {
+  tag: string;
+  confidence: number; // 0-1
+  source: 'llm' | 'rule';
+  isNew?: boolean;
+}
+
+/**
+ * Optional parsed sections from full text
+ */
+export interface PaperSections {
+  abstract?: string;
+  methods?: string;
+  results?: string;
+  discussion?: string;
+  introduction?: string;
+}
+
+/**
  * Complete research paper model
  */
 export interface ResearchPaper {
@@ -98,6 +119,7 @@ export interface ResearchPaper {
   studyType?: StudyType;
   categories: Category[];
   tags: string[]; // User-defined tags
+  autoTags?: AutoTag[]; // System-suggested tags with confidence
 
   // Status tracking
   readStatus: ReadStatus;
@@ -113,6 +135,9 @@ export interface ResearchPaper {
   citationCount?: number;
   fullTextAvailable: boolean;
   pdfUrl?: string;
+  // Full-text handling
+  fullText?: string; // Raw or compressed text (may be large)
+  sections?: PaperSections; // Parsed sections for triage
 }
 
 /**
